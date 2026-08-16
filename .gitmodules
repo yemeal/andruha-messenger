@@ -1,0 +1,18 @@
+[submodule "services/api-gateway"]
+	path = services/api-gateway
+	url = https://github.com/yemeal/andruha-api-gateway.git
+[submodule "services/identity-service"]
+	path = services/identity-service
+	url = https://github.com/yemeal/andruha-identity-service.git
+[submodule "services/user-profile-service"]
+	path = services/user-profile-service
+	url = https://github.com/yemeal/andruha-user-profile-service.git
+[submodule "services/messages-dialogues-service"]
+	path = services/messages-dialogues-service
+	url = https://github.com/yemeal/andruha-messages-dialogues-service.git
+[submodule "services/websocket-gateway-service"]
+	path = services/websocket-gateway-service
+	url = https://github.com/yemeal/andruha-websocket-gateway-service.git
+[submodule "services/object-storage-service"]
+	path = services/object-storage-service
+	url = https://github.com/yemeal/andruha-object-storage-service.git
