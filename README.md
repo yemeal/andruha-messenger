@@ -57,6 +57,7 @@ Application image startup is intentionally unavailable at this stage because Fas
 
 ## Canonical project material
 
+- [Project vision and MVP architecture (Russian)](docs/project-overview.md)
 - [Architecture and implementation documents](docs/)
 - [Cross-service contracts](contracts/)
 
