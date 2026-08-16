@@ -260,5 +260,5 @@ volumes:
 
 networks:
   andruha:
-    name: andruha-local
+    name: ${ANDRUHA_NETWORK_NAME:-andruha-local}
     driver: bridge

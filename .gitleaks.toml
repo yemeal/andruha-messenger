@@ -1,0 +1,11 @@
+title = "Andruha Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The pinned public Valkey Docker image tag is not a credential"
+condition = "AND"
+regexTarget = "line"
+paths = ['''(^|/)docker-compose\.yml$''']
+regexes = ['''^\s*image:\s*valkey/valkey:8\.1\.9-alpine3\.24\s*$''']

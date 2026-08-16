@@ -1,0 +1,99 @@
+name: Integration
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout full superproject history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Scan superproject history
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  compose:
+    name: Compose build and smoke test
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      COMPOSE_PROJECT_NAME: andruha-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      ANDRUHA_NETWORK_NAME: andruha-ci-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout pinned submodules
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Validate Compose model
+        run: docker compose config --quiet
+
+      - name: Build all application images
+        run: docker compose build
+
+      - name: Start application-only topology
+        run: >-
+          docker compose up
+          --detach
+          --wait
+          --wait-timeout 180
+          api-gateway
+          identity-service
+          user-profile-service
+          messages-dialogues-service
+          websocket-gateway-service
+          object-storage-service
+
+      - name: Verify public gateway health
+        run: |
+          set -Eeuo pipefail
+
+          headers_file="$(mktemp)"
+          live_body="$(mktemp)"
+          ready_body="$(mktemp)"
+
+          curl --fail --silent --show-error \
+            --dump-header "${headers_file}" \
+            --output "${live_body}" \
+            http://127.0.0.1:8080/health/live
+          grep --ignore-case --quiet '^x-request-id:' "${headers_file}"
+          grep --quiet '"status":"ok"' "${live_body}"
+
+          curl --fail --silent --show-error \
+            --output "${ready_body}" \
+            http://127.0.0.1:8080/health/ready
+          grep --quiet '"status":"ready"' "${ready_body}"
+
+      - name: Show service state
+        if: always()
+        run: docker compose ps
+
+      - name: Remove disposable CI stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
