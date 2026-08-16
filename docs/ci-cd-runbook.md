@@ -1,7 +1,6 @@
 # CI/CD для Andruha Messenger: воспроизводимый план и runbook
 
-**Статус:** baseline реализован; CI шести сервисов подтверждён на GitHub, root
-integration ожидает публикации
+**Статус:** baseline реализован; CI всех семи репозиториев подтверждён на GitHub
 
 **Дата актуализации:** 2026-08-17
 **Область:** `andruha-messenger` и шесть сервисных репозиториев
@@ -50,7 +49,9 @@ integration ожидает публикации
 - GitHub Secret scanning и Push protection подтверждены как enabled во всех
   семи репозиториях;
 - CI workflow всех шести сервисов успешно выполнились на GitHub 2026-08-17;
-- root integration workflow ещё не опубликован, rulesets пока отсутствуют.
+- root Integration успешно выполнил Secret scan и Compose build/smoke на
+  GitHub 2026-08-17;
+- rulesets пока отсутствуют.
 
 Baseline нельзя упрощать через `continue-on-error`, `|| true` вокруг проверок
 или пустые тесты. Best-effort `|| true` разрешён только в cleanup, например при
@@ -1015,8 +1016,8 @@ finally {
    stack smoke, 6/6 containers healthy.
 5. **Выполнено — service workflows**: CI и GHCR release опубликованы во всех
    сервисах; шесть CI runs успешно прошли на GitHub.
-6. **Создано, ожидает GitHub run — root workflow**: Compose integration
-   workflow и новые submodule pointers.
+6. **Выполнено — root workflow**: Compose integration workflow с новыми
+   submodule pointers успешно прошёл на GitHub.
 7. **Следующий внешний шаг — rulesets**: включить обязательные checks после
    первого успешного root run, чтобы не заблокировать setup commit.
 8. **Migration и contract jobs**: включать вместе с первой реальной migration
@@ -1036,7 +1037,7 @@ CI/CD baseline завершён только если:
 - [x] GitHub Secret scanning и Push protection активны во всех семи
   репозиториях;
 - [x] Gitleaks локально проходит по полной истории всех семи репозиториев и по
-  текущему workspace; service jobs также прошли в GitHub Actions;
+  текущему workspace; все семь jobs также прошли в GitHub Actions;
 - [x] шесть runtime Docker images собираются;
 - [x] health smoke tests проходят для каждого image;
 - [x] root `docker compose config --quiet`, build и изолированный app-only smoke
