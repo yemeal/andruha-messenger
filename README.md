@@ -36,7 +36,7 @@ git submodule update --init --recursive
 
 ## Local topology
 
-The local Compose topology includes the six application services, two PostgreSQL instances, Cassandra, Kafka in single-node KRaft mode, Valkey, and MinIO. Only the API Gateway is published to the host, on port `8080` by default.
+The local Compose topology includes the six application services, three PostgreSQL instances (Identity, Profile, and Object Storage metadata), two isolated Cassandra instances (Identity sessions and Messages), Kafka in single-node KRaft mode, Valkey, and MinIO. Only the API Gateway is published to the host, on port `8080` by default.
 
 Configuration can be rendered now:
 

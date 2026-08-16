@@ -59,8 +59,9 @@ flowchart LR
 
     IdentityPG[("Identity PostgreSQL")]:::storage
     ProfilePG[("Profile PostgreSQL")]:::storage
-    Cassandra[("Cassandra")]:::storage
-    StorageMeta[("Storage metadata PostgreSQL<br/>planned")]:::planned
+    IdentityCassandra[("Identity Sessions Cassandra")]:::storage
+    MessagesCassandra[("Messages Cassandra")]:::storage
+    StorageMeta[("Storage metadata PostgreSQL")]:::storage
     MinIO[("MinIO / S3")]:::storage
     Kafka[["Kafka"]]:::event
     Valkey[("Valkey")]:::event
@@ -73,7 +74,7 @@ flowchart LR
     Gateway --> Objects
 
     Identity --> IdentityPG
-    Identity -->|"refresh sessions"| Cassandra
+    Identity -->|"refresh sessions"| IdentityCassandra
     Identity -->|"idempotency guard"| Valkey
     Identity --> Kafka
 
@@ -81,7 +82,7 @@ flowchart LR
     Profile <--> Kafka
     Profile -->|"avatar validation"| Objects
 
-    Messages --> Cassandra
+    Messages --> MessagesCassandra
     Messages <--> Kafka
     Messages -->|"attachment validation"| Objects
 
@@ -146,14 +147,14 @@ WebSocket Gateway не владеет сообщениями, receipt-состо
 
 Байты идут напрямую между клиентом и MinIO/S3, не проходя через Python-сервис. Право скачать вложение подтверждает владелец бизнес-контекста: Messages Service проверяет членство в диалоге, Profile Service — владельца аватара.
 
-В sequence baseline предполагается отдельный PostgreSQL для метаданных объектов. В текущем skeleton Compose он ещё не создан, поэтому выбор и схема metadata store должны быть формально закреплены перед реализацией Object Storage Service.
+Object Storage Service владеет отдельным PostgreSQL для метаданных объектов; он уже выделен в локальной Compose-топологии. Схема metadata store и адаптер по-прежнему не реализованы в skeleton и должны появиться вместе с первой migration.
 
 ## Роль инфраструктуры
 
 | Компонент | Для чего используется | Чем не является |
 |---|---|---|
-| PostgreSQL | Credentials, профиль, транзакционный outbox, в будущем metadata объектов | Хранилищем истории сообщений |
-| Cassandra | Сообщения, диалоги, sync-проекции и целевые refresh-сессии | Реляционной моделью с join-запросами |
+| PostgreSQL | Credentials, профиль, транзакционный outbox и metadata объектов | Хранилищем истории сообщений |
+| Cassandra | Отдельный session store Identity и отдельное хранилище Messages/Dialogs/sync-проекций | Реляционной моделью с join-запросами |
 | Kafka | Асинхронные команды и события между сервисами | Гарантией exactly-once |
 | Valkey | Idempotency guard, connection routing, typing и временный cache | Durable source of truth |
 | MinIO/S3 | Байты аватаров и вложений | Владельцем прав доступа к диалогу или профилю |
@@ -192,6 +193,7 @@ Kafka работает в режиме at-least-once. Повторная дос�
 - Учётная запись и credentials требуют strong consistency внутри Identity PostgreSQL.
 - Создание профиля после регистрации, message projections и realtime-доставка допускают eventual consistency.
 - Нет распределённых транзакций между сервисами: используются transactional outbox, идемпотентные consumers и repairable projections.
+- Каждый service-owned durable store изолирован отдельным контейнером в локальной топологии: три PostgreSQL и два Cassandra. Kafka, Valkey и MinIO — общие инфраструктурные зависимости, но не чужие доменные БД.
 - Kafka consumer подтверждает offset только после обязательного durable effect и публикации результата.
 - Временная недоступность WebSocket Gateway, Valkey или клиента не должна приводить к потере durable-сообщения.
 - Неоднозначный timeout не даёт права создать новую операцию: клиент повторяет запрос с тем же operation ID.

@@ -616,7 +616,7 @@ Gateway smoke test проверяет:
 | User Profile Service | Нет | Добавить после появления SQLAlchemy models и первой PostgreSQL migration |
 | Messages and Dialogues Service | Не применим | Основное хранилище в skeleton — Cassandra; Alembic не управляет Cassandra |
 | WebSocket Gateway Service | Не применим | Нет PostgreSQL ownership |
-| Object Storage Service | Не определено | Добавить только если сервис станет владельцем SQL metadata |
+| Object Storage Service | Нет | Добавить после появления SQLAlchemy models и первой migration для owned metadata PostgreSQL |
 | API Gateway | Не применим | NGINX не имеет БД |
 
 Пустой каталог `alembic/` не создаётся ради зелёного status check.
@@ -725,7 +725,7 @@ Contract job включается после появления реальног
 
 После добавления adapters:
 
-- Cassandra integration tests запускаются против disposable Cassandra;
+- Cassandra integration tests запускаются против disposable Cassandra, отдельно для Identity Session Store и Messages;
 - Kafka producer/consumer tests запускаются против disposable broker;
 - проверяются retry, duplicate delivery и malformed event cases;
 - Alembic не добавляется.

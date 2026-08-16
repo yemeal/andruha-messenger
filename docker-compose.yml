@@ -174,14 +174,48 @@ services:
     networks:
       - andruha
 
-  cassandra:
+  object-storage-postgres:
+    image: postgres:17.10-bookworm
+    environment:
+      POSTGRES_USER: ${OBJECT_STORAGE_POSTGRES_USER:-andruha_object_storage}
+      POSTGRES_PASSWORD: ${OBJECT_STORAGE_POSTGRES_PASSWORD:-object-storage-local-only}
+      POSTGRES_DB: ${OBJECT_STORAGE_POSTGRES_DB:-andruha_object_storage}
+    volumes:
+      - object_storage_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - andruha
+
+  identity-cassandra:
     image: cassandra:5.0.8-bookworm
     environment:
-      CASSANDRA_CLUSTER_NAME: AndruhaLocal
+      CASSANDRA_CLUSTER_NAME: AndruhaIdentityLocal
       CASSANDRA_DC: datacenter1
       CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
     volumes:
-      - cassandra_data:/var/lib/cassandra
+      - identity_cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE CLUSTER' >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - andruha
+
+  messages-cassandra:
+    image: cassandra:5.0.8-bookworm
+    environment:
+      CASSANDRA_CLUSTER_NAME: AndruhaMessagesLocal
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+    volumes:
+      - messages_cassandra_data:/var/lib/cassandra
     healthcheck:
       test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE CLUSTER' >/dev/null 2>&1"]
       interval: 15s
@@ -253,7 +287,9 @@ services:
 volumes:
   identity_postgres_data:
   profile_postgres_data:
-  cassandra_data:
+  object_storage_postgres_data:
+  identity_cassandra_data:
+  messages_cassandra_data:
   kafka_data:
   valkey_data:
   minio_data:

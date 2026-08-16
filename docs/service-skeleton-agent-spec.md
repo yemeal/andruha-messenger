@@ -252,8 +252,8 @@ Because application dependencies are intentionally absent, Python runtime startu
 Create one root `docker-compose.yml` containing:
 
 - all six application/gateway services, built from their submodule paths;
-- PostgreSQL for Identity credentials and User Profile data;
-- Cassandra for message/dialogue data and future high-write session data;
+- separate PostgreSQL instances for Identity credentials, User Profile data, and Object Storage metadata;
+- separate Cassandra instances for Identity high-write session data and Messages/Dialogs data;
 - Kafka in single-node KRaft mode for local event flow;
 - Valkey for ephemeral presence, typing state, connection routing, and cache experiments;
 - MinIO as the self-hosted S3-compatible object store;
@@ -270,7 +270,7 @@ Compose requirements:
 - do not add database schemas, keyspaces, buckets, Kafka topics, migrations, seed data, or business bootstrap scripts;
 - do not claim production HA, Cassandra scaling, Kafka durability, or a production security posture from this local Compose file.
 
-The exact ownership of session persistence and object metadata is intentionally deferred; Compose availability does not authorize adapters or schemas.
+Compose fixes the durable-store ownership boundary: Identity owns its PostgreSQL and session Cassandra; Profile owns its PostgreSQL; Messages owns its Cassandra; Object Storage owns its metadata PostgreSQL and MinIO boundary. Compose availability does not authorize adapters, schemas, keyspaces, or migrations.
 
 ## 11. README template for every service repository
 
