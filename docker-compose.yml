@@ -31,6 +31,12 @@ services:
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
     expose:
       - "8001"
+    secrets:
+      - identity_jwt_private_key
+      - identity_replay_key
+    configs:
+      - source: identity_jwt_public_key
+        target: /run/configs/identity_jwt_public_key
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health/ready', timeout=2).read()"]
       interval: 10s
@@ -293,6 +299,17 @@ volumes:
   kafka_data:
   valkey_data:
   minio_data:
+
+secrets:
+  identity_jwt_private_key:
+    file: ./.secrets/identity/jwt-private.pem
+
+  identity_replay_key:
+    file: ./.secrets/identity/replay-v1.key
+
+configs:
+  identity_jwt_public_key:
+    file: ./.secrets/identity/jwt-public.pem
 
 networks:
   andruha:
