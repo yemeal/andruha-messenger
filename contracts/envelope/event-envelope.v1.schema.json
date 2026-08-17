@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:envelope:event-envelope:v1",
+  "title": "Andruha Event Envelope v1",
+  "description": "Base envelope for durable Kafka business events.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "schema_version",
+    "occurred_at",
+    "producer",
+    "correlation_id",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identity of the logical event."
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Versioned event type, for example identity.user_registered.v1."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Major version of the business payload contract."
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC time when the business event occurred."
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Stable service name of the event producer."
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identifier of the complete cross-service operation."
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identifier of the command, event or request that directly caused this event."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Versioned business payload defined by the concrete event contract."
+    }
+  },
+  "additionalProperties": false
+}

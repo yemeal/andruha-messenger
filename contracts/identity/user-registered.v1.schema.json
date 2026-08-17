@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:identity:user-registered:v1",
+  "title": "identity.user_registered.v1",
+  "description": "Published by Identity Service after successful durable user registration.",
+  "allOf": [
+    {
+      "$ref": "../envelope/event-envelope.v1.schema.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": {
+          "const": "identity.user_registered.v1"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-identity-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "user_id",
+            "registered_at"
+          ],
+          "properties": {
+            "user_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Identity of the newly registered user."
+            },
+            "registered_at": {
+              "type": "string",
+              "format": "date-time",
+              "description": "UTC time when registration completed."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}
