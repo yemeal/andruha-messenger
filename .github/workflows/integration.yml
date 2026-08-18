@@ -73,6 +73,19 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Generate disposable CI secrets
+        run: |
+          mkdir -p .secrets/identity
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+            -out .secrets/identity/jwt-private.pem
+          openssl rsa -pubout -in .secrets/identity/jwt-private.pem \
+            -out .secrets/identity/jwt-public.pem
+          openssl rand -out .secrets/identity/replay-v1.key 32
+          chmod 0644 \
+            .secrets/identity/jwt-private.pem \
+            .secrets/identity/jwt-public.pem \
+            .secrets/identity/replay-v1.key
+
       - name: Validate Compose model
         run: docker compose config --quiet
 
