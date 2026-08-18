@@ -1,0 +1,13 @@
+{
+  "eventId": "019c0000-0000-7000-8000-000000000001",
+  "eventType": "identity.user_registered.v1",
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-18T00:10:30.123Z",
+  "producer": "andruha-identity-service",
+  "correlationId": "019c0000-0000-7000-8000-000000000002",
+  "causationId": "019c0000-0000-7000-8000-000000000003",
+  "payload": {
+    "userId": "019c0000-0000-7000-8000-000000000004",
+    "registeredAt": "2026-08-18T00:10:30.120Z"
+  }
+}

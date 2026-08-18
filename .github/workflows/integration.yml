@@ -34,9 +34,31 @@ jobs:
           GITLEAKS_ENABLE_COMMENTS: "false"
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
+  contracts:
+    name: Contract validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a254f5ce60d0be46af2246477e2373e9c7041728 # v5.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install contract test dependencies
+        run: pip install -r contracts/requirements-dev.txt
+
+      - name: Run contract tests
+        run: python -m unittest discover -s contracts/tests -v
+
   compose:
     name: Compose build and smoke test
-    needs: secret-scan
+    needs: [secret-scan, contracts]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

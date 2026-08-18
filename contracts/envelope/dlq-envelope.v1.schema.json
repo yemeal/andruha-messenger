@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:envelope:dlq-envelope:v1",
+  "title": "Andruha DLQ Envelope v1",
+  "description": "Universal operational envelope for poison, unparseable or unsupported Kafka messages across any topic. Diagnostic fields must never contain user content, credentials or exception text.",
+  "type": "object",
+  "required": [
+    "deadLetterId",
+    "failedAt",
+    "consumer",
+    "source",
+    "failure",
+    "originalValueBase64"
+  ],
+  "properties": {
+    "deadLetterId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier of this dead-letter record."
+    },
+    "failedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when processing failed."
+    },
+    "consumer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Stable service name of the consumer encountering the failure."
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "topic",
+        "partition",
+        "offset"
+      ],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Source Kafka topic where the failed message was consumed from."
+        },
+        "partition": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Source topic partition index."
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Source partition offset."
+        },
+        "keyBase64": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "contentEncoding": "base64",
+          "description": "Original raw Kafka record key in base64, or null if key was absent."
+        }
+      },
+      "additionalProperties": false
+    },
+    "failure": {
+      "type": "object",
+      "required": [
+        "code",
+        "stage",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[._][a-z0-9]+)+$",
+          "maxLength": 100,
+          "description": "Stable diagnostic error code without dynamic user text or private parameters."
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "DECODE",
+            "ENVELOPE_VALIDATION",
+            "CONTRACT_VALIDATION",
+            "UNSUPPORTED_VERSION",
+            "PROCESSING"
+          ],
+          "description": "Processing lifecycle stage where failure occurred."
+        },
+        "retryable": {
+          "const": false,
+          "description": "DLQ is strictly for non-retryable failures. Transient errors must be retried before DLQ."
+        }
+      },
+      "additionalProperties": false
+    },
+    "originalValueBase64": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "Exact original raw Kafka record value for controlled replay/redrive. Never expose or log as plaintext."
+    }
+  },
+  "additionalProperties": false
+}

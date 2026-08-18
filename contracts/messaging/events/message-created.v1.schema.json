@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:message-created:v1",
+  "title": "message.created.v1",
+  "description": "Delivers a canonical durable message to its recipient.",
+  "allOf": [
+    {
+      "$ref": "urn:andruha:contracts:envelope:event-envelope:v1"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": {
+          "const": "message.created.v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-messages-dialogues-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "targetUserId",
+            "message"
+          ],
+          "properties": {
+            "targetUserId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Recipient user used as the Kafka key and realtime routing target."
+            },
+            "message": {
+              "$ref": "urn:andruha:contracts:messaging:definitions:message:v1"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

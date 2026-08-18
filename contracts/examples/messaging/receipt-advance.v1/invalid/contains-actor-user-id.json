@@ -1,0 +1,16 @@
+{
+  "commandId": "019c2000-0000-7000-8000-000000000001",
+  "commandType": "receipt.advance.v1",
+  "schemaVersion": 1,
+  "issuedAt": "2026-08-18T01:00:00.000Z",
+  "producer": "andruha-websocket-gateway-service",
+  "correlationId": "019c2000-0000-7000-8000-000000000003",
+  "causationId": "019c2000-0000-7000-8000-000000000004",
+  "payload": {
+    "userId": "019c2000-0000-7000-8000-000000000002",
+    "dialogId": "019c2000-0000-7000-8000-000000000005",
+    "kind": "DELIVERED",
+    "throughMessageId": "019c2000-0000-7000-8000-000000000006",
+    "actorUserId": "019c2000-0000-7000-8000-999999999999"
+  }
+}

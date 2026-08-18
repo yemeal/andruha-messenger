@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:receipt-advance:v1",
+  "title": "receipt.advance.v1",
+  "description": "Authenticated command that monotonically advances a recipient delivery or read watermark.",
+  "allOf": [
+    {
+      "$ref": "urn:andruha:contracts:envelope:command-envelope:v1"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "commandType": {
+          "const": "receipt.advance.v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-websocket-gateway-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "userId",
+            "dialogId",
+            "kind",
+            "throughMessageId"
+          ],
+          "properties": {
+            "userId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Authenticated user identity advancing the watermark, populated by the gateway."
+            },
+            "dialogId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "DELIVERED",
+                "READ"
+              ]
+            },
+            "throughMessageId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

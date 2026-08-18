@@ -1,45 +1,45 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:andruha:contracts:envelope:event-envelope:v1",
-  "title": "Andruha Event Envelope v1",
-  "description": "Base envelope for durable Kafka business events.",
+  "$id": "urn:andruha:contracts:envelope:command-envelope:v1",
+  "title": "Andruha Command Envelope v1",
+  "description": "Base envelope for durable Kafka commands.",
   "type": "object",
   "required": [
-    "eventId",
-    "eventType",
+    "commandId",
+    "commandType",
     "schemaVersion",
-    "occurredAt",
+    "issuedAt",
     "producer",
     "correlationId",
     "payload"
   ],
   "properties": {
-    "eventId": {
+    "commandId": {
       "type": "string",
       "format": "uuid",
-      "description": "Unique identity of the logical event."
+      "description": "Unique identity of this logical command."
     },
-    "eventType": {
+    "commandType": {
       "type": "string",
       "minLength": 1,
       "maxLength": 200,
-      "description": "Versioned event type, for example identity.user_registered.v1."
+      "description": "Versioned command type, for example message.send.v1."
     },
     "schemaVersion": {
       "type": "integer",
       "minimum": 1,
       "description": "Major version of the business payload contract."
     },
-    "occurredAt": {
+    "issuedAt": {
       "type": "string",
       "format": "date-time",
-      "description": "UTC time when the business event occurred."
+      "description": "UTC time when the command was issued."
     },
     "producer": {
       "type": "string",
       "minLength": 1,
       "maxLength": 200,
-      "description": "Stable service name of the event producer."
+      "description": "Stable service name of the command producer."
     },
     "correlationId": {
       "type": "string",
@@ -49,11 +49,11 @@
     "causationId": {
       "type": "string",
       "format": "uuid",
-      "description": "Identifier of the command, event or request that directly caused this event."
+      "description": "Identifier of the request, command or event that directly caused this command."
     },
     "payload": {
       "type": "object",
-      "description": "Versioned business payload defined by the concrete event contract."
+      "description": "Versioned business payload defined by the concrete command contract."
     }
   },
   "additionalProperties": false

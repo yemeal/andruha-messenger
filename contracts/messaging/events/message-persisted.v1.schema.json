@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:message-persisted:v1",
+  "title": "message.persisted.v1",
+  "description": "Confirms to the sender that a client message has one canonical durable message identity.",
+  "allOf": [
+    {
+      "$ref": "urn:andruha:contracts:envelope:event-envelope:v1"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": {
+          "const": "message.persisted.v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-messages-dialogues-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "targetUserId",
+            "clientMessageId",
+            "message"
+          ],
+          "properties": {
+            "targetUserId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Sender user used as the Kafka key and realtime routing target."
+            },
+            "clientMessageId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "description": "Stable client idempotency identifier being reconciled."
+            },
+            "message": {
+              "$ref": "urn:andruha:contracts:messaging:definitions:message:v1"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "deadLetterId": "019c7000-0000-7000-8000-000000000002",
+  "failedAt": "2026-08-18T01:51:00.000Z",
+  "consumer": "andruha-user-profile-service",
+  "source": {
+    "topic": "identity.events.v1",
+    "partition": 0,
+    "offset": 105,
+    "keyBase64": "MDE5YzcwMDAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDAwMDAz"
+  },
+  "failure": {
+    "code": "identity.contract_validation_failed",
+    "stage": "CONTRACT_VALIDATION",
+    "retryable": false
+  },
+  "originalValueBase64": "eyJldmVudFR5cGUiOiJpZGVudGl0eS51c2VyX3JlZ2lzdGVyZWQudjEifQ=="
+}

@@ -1,0 +1,17 @@
+{
+  "eventId": "019c6000-0000-7000-8000-000000000001",
+  "eventType": "receipt.watermark_advanced.v1",
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-18T01:40:00.000Z",
+  "producer": "andruha-messages-dialogues-service",
+  "correlationId": "019c6000-0000-7000-8000-000000000002",
+  "causationId": "019c6000-0000-7000-8000-000000000003",
+  "payload": {
+    "targetUserId": "019c6000-0000-7000-8000-000000000004",
+    "dialogId": "019c6000-0000-7000-8000-000000000005",
+    "kind": "DELIVERED",
+    "throughMessageId": "019c6000-0000-7000-8000-000000000006",
+    "throughMessageTime": "2026-08-18T01:39:59.000Z",
+    "statusVersion": 0
+  }
+}

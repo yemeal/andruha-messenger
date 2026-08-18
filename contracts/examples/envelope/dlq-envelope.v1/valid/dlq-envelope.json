@@ -1,0 +1,17 @@
+{
+  "deadLetterId": "019c7000-0000-7000-8000-000000000001",
+  "failedAt": "2026-08-18T01:50:00.000Z",
+  "consumer": "andruha-messages-dialogues-service",
+  "source": {
+    "topic": "messaging.commands.v1",
+    "partition": 2,
+    "offset": 42,
+    "keyBase64": "MDE5YzcwMDAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDAwMDAy"
+  },
+  "failure": {
+    "code": "messaging.unsupported_contract_version",
+    "stage": "UNSUPPORTED_VERSION",
+    "retryable": false
+  },
+  "originalValueBase64": "eyJjb21tYW5kVHlwZSI6Im1lc3NhZ2Uuc2VuZC52MiJ9"
+}
