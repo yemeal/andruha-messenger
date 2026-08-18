@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:definitions:message:v1",
+  "title": "Canonical message snapshot v1",
+  "description": "Immutable message data shared by sender and recipient events.",
+  "type": "object",
+  "required": [
+    "messageId",
+    "dialogId",
+    "senderId",
+    "sentAt",
+    "text",
+    "attachments"
+  ],
+  "properties": {
+    "messageId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "dialogId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "senderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sentAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096
+    },
+    "attachments": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "objectId",
+          "mediaType",
+          "sizeBytes",
+          "sha256Base64"
+        ],
+        "properties": {
+          "objectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 26214400
+          },
+          "sha256Base64": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "minLength": 44,
+            "maxLength": 44,
+            "pattern": "^[A-Za-z0-9+/]{43}=$"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "attachments": {
+          "minItems": 1
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

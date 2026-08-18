@@ -1,0 +1,21 @@
+{
+  "eventId": "019c4000-0000-7000-8000-000000000001",
+  "eventType": "message.created.v1",
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-18T01:20:00.000Z",
+  "producer": "andruha-messages-dialogues-service",
+  "correlationId": "019c4000-0000-7000-8000-000000000002",
+  "causationId": "019c4000-0000-7000-8000-000000000003",
+  "payload": {
+    "targetUserId": "019c4000-0000-7000-8000-000000000004",
+    "recipientId": "019c4000-0000-7000-8000-999999999999",
+    "message": {
+      "messageId": "019c4000-0000-7000-8000-000000000005",
+      "dialogId": "019c4000-0000-7000-8000-000000000006",
+      "senderId": "019c4000-0000-7000-8000-000000000007",
+      "sentAt": "2026-08-18T01:20:00.000Z",
+      "text": "Привет",
+      "attachments": []
+    }
+  }
+}

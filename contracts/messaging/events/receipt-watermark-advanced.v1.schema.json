@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:receipt-watermark-advanced:v1",
+  "title": "receipt.watermark_advanced.v1",
+  "description": "Notifies the original sender that a recipient delivery or read watermark advanced monotonically.",
+  "allOf": [
+    {
+      "$ref": "urn:andruha:contracts:envelope:event-envelope:v1"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": {
+          "const": "receipt.watermark_advanced.v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-messages-dialogues-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "targetUserId",
+            "dialogId",
+            "kind",
+            "throughMessageId",
+            "throughMessageTime",
+            "statusVersion"
+          ],
+          "properties": {
+            "targetUserId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Original message sender used as the Kafka key and realtime routing target."
+            },
+            "dialogId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "DELIVERED",
+                "READ"
+              ]
+            },
+            "throughMessageId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "throughMessageTime": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "statusVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

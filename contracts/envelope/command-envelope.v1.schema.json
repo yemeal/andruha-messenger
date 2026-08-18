@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:envelope:command-envelope:v1",
+  "title": "Andruha Command Envelope v1",
+  "description": "Base envelope for durable Kafka commands.",
+  "type": "object",
+  "required": [
+    "commandId",
+    "commandType",
+    "schemaVersion",
+    "issuedAt",
+    "producer",
+    "correlationId",
+    "payload"
+  ],
+  "properties": {
+    "commandId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identity of this logical command."
+    },
+    "commandType": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Versioned command type, for example message.send.v1."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Major version of the business payload contract."
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC time when the command was issued."
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Stable service name of the command producer."
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identifier of the complete cross-service operation."
+    },
+    "causationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identifier of the request, command or event that directly caused this command."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Versioned business payload defined by the concrete command contract."
+    }
+  },
+  "additionalProperties": false
+}

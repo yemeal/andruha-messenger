@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:message-send:v1",
+  "title": "message.send.v1",
+  "description": "Command requesting creation of a new message in a dialog.",
+  "allOf": [
+    {
+      "$ref": "urn:andruha:contracts:envelope:command-envelope:v1"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "commandType": {
+          "const": "message.send.v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-websocket-gateway-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "userId",
+            "clientMessageId",
+            "dialogId",
+            "text",
+            "attachmentIds"
+          ],
+          "properties": {
+            "userId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Authenticated sender user identity populated by the gateway."
+            },
+            "clientMessageId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "description": "Client-generated stable message idempotency identifier."
+            },
+            "dialogId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Dialog where the message must be created."
+            },
+            "text": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 4096,
+              "description": "NFC-normalized message text."
+            },
+            "attachmentIds": {
+              "type": "array",
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "description": "Ordered attachment identifiers."
+            }
+          },
+          "anyOf": [
+            {
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "text"
+              ]
+            },
+            {
+              "properties": {
+                "attachmentIds": {
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "attachmentIds"
+              ]
+            }
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}

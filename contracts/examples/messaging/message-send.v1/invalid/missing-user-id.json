@@ -1,0 +1,15 @@
+{
+  "commandId": "019c1000-0000-7000-8000-000000000001",
+  "commandType": "message.send.v1",
+  "schemaVersion": 1,
+  "issuedAt": "2026-08-18T00:30:00.000Z",
+  "producer": "andruha-websocket-gateway-service",
+  "correlationId": "019c1000-0000-7000-8000-000000000002",
+  "causationId": "019c1000-0000-7000-8000-000000000003",
+  "payload": {
+    "clientMessageId": "019c1000-0000-7000-8000-000000000005",
+    "dialogId": "019c1000-0000-7000-8000-000000000006",
+    "text": "Привет",
+    "attachmentIds": []
+  }
+}

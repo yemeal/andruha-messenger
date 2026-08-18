@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:messaging:message-rejected:v1",
+  "title": "message.rejected.v1",
+  "description": "Reports a permanent business rejection of a message command to its sender without leaking private resource existence.",
+  "allOf": [
+    {
+      "$ref": "urn:andruha:contracts:envelope:event-envelope:v1"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventType": {
+          "const": "message.rejected.v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "producer": {
+          "const": "andruha-messages-dialogues-service"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "targetUserId",
+            "clientMessageId",
+            "dialogId",
+            "code",
+            "retryable"
+          ],
+          "properties": {
+            "targetUserId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "clientMessageId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dialogId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "code": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:[._][a-z0-9]+)+$",
+              "maxLength": 100,
+              "description": "Stable localization-safe business error code. It must not contain exception text or private resource details."
+            },
+            "retryable": {
+              "const": false
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  ]
+}
