@@ -6,6 +6,11 @@
 envelope, WebSocket frames, pagination cursor и authenticated principal.
 Producer и consumer не должны одновременно придумывать контракт в коде.
 
+Kafka JSON properties используют `camelCase`. Python DTO могут сохранять
+идиоматичный `snake_case`, но обязаны сериализоваться через aliases и проходить
+producer/consumer contract tests. Имена типов (`message.send.v1`) не являются
+JSON property names и сохраняют согласованный dot-separated формат.
+
 ## 1. Где находится источник истины
 
 Корневой `contracts/` должен содержать:
@@ -13,24 +18,23 @@ Producer и consumer не должны одновременно придумыв
 ```text
 contracts/
   envelope/
-    event-metadata.v1.schema.json
-    command-metadata.v1.schema.json
-    error.v1.schema.json
-  identity/
-    user-registered.v1.schema.json
-  messaging/
-    message-send.v1.schema.json
-    message-persisted.v1.schema.json
-    message-created.v1.schema.json
-    message-rejected.v1.schema.json
-    receipt-advance.v1.schema.json
-    receipt-watermark-advanced.v1.schema.json
+    event-envelope.v1.schema.json
+    command-envelope.v1.schema.json
     dlq-envelope.v1.schema.json
-  websocket/
-    client-frame.v1.schema.json
-    server-frame.v1.schema.json
-  objects/
-    descriptor.v1.schema.json
+  identity/
+    events/
+      user-registered.v1.schema.json
+  messaging/
+    commands/
+      message-send.v1.schema.json
+      receipt-advance.v1.schema.json
+    events/
+      message-persisted.v1.schema.json
+      message-created.v1.schema.json
+      message-rejected.v1.schema.json
+      receipt-watermark-advanced.v1.schema.json
+    definitions/
+      message.v1.schema.json
   examples/
     ...valid and invalid fixtures...
 ```
@@ -66,16 +70,16 @@ Consumer обязан:
 
 ```json
 {
-  "event_id": "019c...",
-  "event_type": "identity.user_registered.v1",
-  "schema_version": 1,
-  "occurred_at": "2026-08-17T10:15:30.123Z",
+  "eventId": "019c...",
+  "eventType": "identity.user_registered.v1",
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-17T10:15:30.123Z",
   "producer": "andruha-identity-service",
-  "correlation_id": "019c...",
-  "causation_id": "019c...",
+  "correlationId": "019c...",
+  "causationId": "019c...",
   "payload": {
-    "user_id": "019c...",
-    "registered_at": "2026-08-17T10:15:30.120Z"
+    "userId": "019c...",
+    "registeredAt": "2026-08-17T10:15:30.120Z"
   }
 }
 ```
@@ -84,13 +88,13 @@ Consumer обязан:
 
 | Поле | Смысл |
 |---|---|
-| `event_id` | Уникальная identity события; для repair-публикаций может быть детерминированной |
-| `event_type` | Полное имя и major version |
-| `schema_version` | Версия envelope payload contract; не заменяет `event_type` |
-| `occurred_at` | Время бизнес-события в UTC, не время каждой повторной публикации |
+| `eventId` | Уникальная identity события; для repair-публикаций может быть детерминированной |
+| `eventType` | Полное имя и major version |
+| `schemaVersion` | Версия envelope payload contract; не заменяет `eventType` |
+| `occurredAt` | Время бизнес-события в UTC, не время каждой повторной публикации |
 | `producer` | Стабильное service name |
-| `correlation_id` | Сквозная операция пользователя |
-| `causation_id` | ID command/event, который вызвал текущее событие |
+| `correlationId` | Сквозная операция пользователя |
+| `causationId` | ID command/event, который вызвал текущее событие/команду (опционально для root-операций) |
 | `payload` | Versioned business data |
 
 Не добавляй `retry_count` в immutable business envelope. Transport attempt
@@ -104,12 +108,18 @@ from typing import Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 PayloadT = TypeVar("PayloadT", bound=BaseModel)
 
 
 class EventEnvelope(BaseModel, Generic[PayloadT]):
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        extra="forbid",
+        populate_by_name=True,
+        strict=True,
+    )
 
     event_id: UUID
     event_type: str
@@ -117,13 +127,37 @@ class EventEnvelope(BaseModel, Generic[PayloadT]):
     occurred_at: datetime
     producer: str
     correlation_id: UUID
-    causation_id: UUID
+    causation_id: UUID | None = None
     payload: PayloadT
 ```
 
+Producer сериализует wire JSON через `model_dump(mode="json", by_alias=True)`.
 `extra="forbid"` полезен для command: опечатка не должна молча исчезать.
 Для event consumer во время rolling upgrade допустимость unknown optional fields
 должна быть осознанным contract-решением, а не случайным default Pydantic.
+
+Kafka command использует универсальный envelope:
+
+```json
+{
+  "commandId": "019c...",
+  "commandType": "message.send.v1",
+  "schemaVersion": 1,
+  "issuedAt": "2026-08-17T10:15:30.123Z",
+  "producer": "andruha-websocket-gateway-service",
+  "correlationId": "019c...",
+  "causationId": "019c...",
+  "payload": {
+    "userId": "019c...",
+    "clientMessageId": "019c...",
+    "dialogId": "019c...",
+    "text": "Привет",
+    "attachmentIds": []
+  }
+}
+```
+
+Базовый envelope команд универсален и не содержит полей пользователя в метаданных. Аутентифицированный `userId` передаётся внутри `payload` конкретной команды и проставляется WebSocket Gateway только из проверенного access token. Клиент не может прислать `userId`, `senderId` или `recipientId` внутри входящего WebSocket-фрейма.
 
 ## 4. Kafka topics и keys
 
@@ -131,13 +165,13 @@ class EventEnvelope(BaseModel, Generic[PayloadT]):
 
 | Topic | Key | Producer | Consumer |
 |---|---|---|---|
-| `identity.events.v1` | `user_id` | Identity outbox relay | Profile consumer |
-| `messaging.commands.v1` | `dialog_id` | WebSocket Gateway | Messages worker |
-| `messaging.events.v1` | `target_user_id` | Messages worker | WS dispatcher |
-| `messaging.commands.dlq.v1` | исходный key | Messages worker | operator/manual redrive |
+| `identity.events.v1` | `userId` | Identity outbox relay | Profile consumer |
+| `messaging.commands.v1` | `dialogId` | WebSocket Gateway | Messages worker |
+| `messaging.events.v1` | `targetUserId` | Messages worker | WS dispatcher |
+| `<topic>.dlq` | исходный key | Любой consumer при сбое | operator/manual redrive |
 
 `message.send`, `receipt.delivered` и `receipt.read` лучше держать в одном
-`messaging.commands.v1`, потому что один topic + `dialog_id` key сохраняет
+`messaging.commands.v1`, потому что один topic + `dialogId` key сохраняет
 порядок command внутри dialog. Разделение на разные topics лишило бы систему
 порядка между message и receipt.
 
@@ -361,23 +395,23 @@ origin. До публикации в интернет нужно реализо�
 | ID | Жизненный цикл |
 |---|---|
 | `request_id` | Один HTTP request или один WS frame |
-| `correlation_id` | Вся пользовательская операция через services |
-| `causation_id` | Непосредственный command/event-родитель |
+| `correlationId` | Вся пользовательская операция через services |
+| `causationId` | Непосредственный command/event-родитель |
 
 NGINX создаёт доверенный `X-Request-Id` для HTTP. WS client присылает
 `request_id`, Gateway валидирует UUID и создаёт новый, если политика требует
 server-owned ID. При публикации command:
 
 ```text
-correlation_id = исходная пользовательская операция
-causation_id = WS request_id
+correlationId = исходная пользовательская операция
+causationId = WS requestId
 ```
 
 При создании result event:
 
 ```text
-correlation_id = command.correlation_id
-causation_id = command_id
+correlationId = command.correlationId
+causationId = commandId
 ```
 
 IDs можно писать в logs, но нельзя использовать как Prometheus labels.
@@ -447,6 +481,13 @@ Production codec также ограничивает длину input, version, 
 6. В consumer test прочитать valid fixture и проверить typed command.
 7. Проверить rolling compatibility для optional field.
 8. Обновить `contracts/README.md` и changelog.
+
+Root repository предоставляет воспроизводимую проверку:
+
+```bash
+python -m pip install -r contracts/requirements-dev.txt
+python -m unittest discover -s contracts/tests -v
+```
 
 ## 13. Acceptance этой главы
 

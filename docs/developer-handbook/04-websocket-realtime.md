@@ -272,10 +272,10 @@ Dispatcher consumer получает target-specific event:
 
 ```json
 {
-  "event_id": "...",
-  "event_type": "message.created.v1",
+  "eventId": "...",
+  "eventType": "message.created.v1",
   "payload": {
-    "target_user_id": "...",
+    "targetUserId": "...",
     "message": {}
   }
 }

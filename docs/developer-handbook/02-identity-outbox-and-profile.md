@@ -41,16 +41,16 @@ Identity commit. Профиль появляется eventually.
 
 ```json
 {
-  "event_id": "019c...",
-  "event_type": "identity.user_registered.v1",
-  "schema_version": 1,
-  "occurred_at": "2026-08-17T10:15:30.123Z",
+  "eventId": "019c...",
+  "eventType": "identity.user_registered.v1",
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-17T10:15:30.123Z",
   "producer": "andruha-identity-service",
-  "correlation_id": "019c...",
-  "causation_id": "019c...",
+  "correlationId": "019c...",
+  "causationId": "019c...",
   "payload": {
-    "user_id": "019c...",
-    "registered_at": "2026-08-17T10:15:30.120Z"
+    "userId": "019c...",
+    "registeredAt": "2026-08-17T10:15:30.120Z"
   }
 }
 ```
@@ -63,7 +63,7 @@ Email, password hash, role, account status и token в event запрещены.
 расширение contract и registration request. Identity не должен сохранять
 locale как credential field.
 
-Kafka topic: `identity.events.v1`; key: `user_id`.
+Kafka topic: `identity.events.v1`; key: wire-поле `userId`.
 
 ## 3. Identity outbox model
 

@@ -29,6 +29,7 @@ services:
       DEV_LOGS: ${DEV_LOGS:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
     expose:
       - "8001"
     secrets:
@@ -43,6 +44,34 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    networks:
+      - andruha
+
+  identity-relay:
+    image: andruha/identity-service:0.1.0
+    build:
+      context: ./services/identity-service
+      target: runtime
+    command: ["python", "-m", "app.entrypoints.messaging.relay"]
+    environment:
+      SERVICE_NAME: andruha-identity-relay
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DEV_LOGS: ${DEV_LOGS:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access,sqlalchemy}
+      RUN_MIGRATIONS: "false"
+    secrets:
+      - identity_jwt_private_key
+      - identity_replay_key
+    configs:
+      - source: identity_jwt_public_key
+        target: /run/configs/identity_jwt_public_key
+    depends_on:
+      identity-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - andruha
 
@@ -235,18 +264,29 @@ services:
     image: apache/kafka:3.9.2
     environment:
       CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+
+      # KRaft
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+
+      # Listeners
+      # PLAINTEXT   для сервисов внутри docker network
+      # CONTROLLER  для внутреннего KRaft-протокола
+      # EXTERNAL    для доступа с хоста (localhost:9092)
       KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Топики
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_NUM_PARTITIONS: 1
+
+      # Storage
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka_data:/var/lib/kafka/data
@@ -256,6 +296,21 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
+    networks:
+      - andruha
+
+  # --- Kafka UI ---
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    restart: unless-stopped
+    ports:
+      - "9099:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "AndruhaLocal"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:29092"
+    depends_on:
+      kafka:
+        condition: service_healthy
     networks:
       - andruha
 

@@ -72,9 +72,10 @@
 - logout и `/me`;
 - PostgreSQL migration, readiness, metrics, unit и integration tests.
 
-Identity пока **не создаёт** событие о регистрации пользователя. В его схеме
-нет registration outbox, relay и контракта `identity.user_registered.v1`.
-Это первый обязательный пробел, который нужно закрыть.
+Identity пока **не создаёт** событие о регистрации пользователя. Registration
+outbox и relay ещё не реализованы. Root-контракт `identity.user_registered.v1`
+уже зафиксирован в `contracts/` на `camelCase`; следующий обязательный пробел —
+атомарно записать его envelope вместе с user и реализовать relay.
 
 ### Пока являются скелетонами
 

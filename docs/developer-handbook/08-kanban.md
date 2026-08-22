@@ -54,22 +54,23 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** ничего.
 
-- [ ] добавить JSON Schema в root `contracts/events/identity/`;
-- [ ] поля envelope только `event_id`, `event_type`, `schema_version`, `occurred_at`, `producer`, `correlation_id`, `causation_id`, `payload.user_id`, `payload.registered_at`;
-- [ ] Kafka record key=`user_id`; key не дублируется в business payload;
-- [ ] добавить valid/invalid examples;
-- [ ] валидировать schema в CI.
+- [x] добавить JSON Schema в root `contracts/identity/events/`;
+- [x] camelCase envelope: `eventId`, `eventType`, `schemaVersion`, `occurredAt`, `producer`, `correlationId`, `causationId`, `payload.userId`, `payload.registeredAt`;
+- [x] Kafka record key=`userId`; source — то же canonical wire-поле payload;
+- [x] добавить valid/invalid examples;
+- [x] валидировать schema в CI.
 
-**Готово:** Identity producer и будущий Profile consumer импортируют/проверяют один контракт; credentials/PII в payload отсутствуют.
+**Готово:** root schema и fixtures зафиксированы, проходят локальные contract
+tests и автоматический CI gate.
 
 ## M0.02 — Добавить outbox migration в Identity
 
 **Зависит от:** M0.01.
 
-- [ ] таблица, индексы, lease/retry/quarantine fields;
-- [ ] upgrade/downgrade;
-- [ ] constraint на event ID и валидные состояния;
-- [ ] integration test migration.
+- [x] таблица, индексы, lease/retry/quarantine fields;
+- [x] upgrade/downgrade;
+- [x] constraint на event ID и валидные состояния;
+- [x] integration test migration.
 
 **Готово:** migration накатывается на чистую и текущую DB, откат проверен в test environment.
 
@@ -77,10 +78,10 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.01.
 
-- [ ] immutable `OutboxMessage`;
-- [ ] `OutboxRepositoryProtocol`;
-- [ ] clock/ID generator через ports;
-- [ ] application слой не импортирует SQLAlchemy/Kafka.
+- [x] immutable `OutboxMessage`;
+- [x] `OutboxRepositoryProtocol`;
+- [x] clock/ID generator через ports;
+- [x] application слой не импортирует SQLAlchemy/Kafka.
 
 **Готово:** unit tests проверяют построение event и отсутствие transport types.
 
@@ -88,10 +89,10 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.02, M0.03.
 
-- [ ] расширить Identity UoW;
-- [ ] при реальном первом создании пользователя добавить outbox row;
-- [ ] rollback откатывает обе записи;
-- [ ] duplicate/replay не создаёт новый logical event.
+- [x] расширить Identity UoW;
+- [x] при реальном первом создании пользователя добавить outbox row;
+- [x] rollback откатывает обе записи;
+- [x] duplicate/replay не создаёт новый logical event.
 
 **Готово:** integration test доказывает `user+event` или `ничего`.
 
@@ -99,10 +100,10 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.02.
 
-- [ ] `FOR UPDATE SKIP LOCKED` маленькими batches;
-- [ ] lease expiry позволяет подобрать запись после crash;
-- [ ] exponential backoff + jitter;
-- [ ] quarantine после configurable attempts.
+- [x] `FOR UPDATE SKIP LOCKED` маленькими batches;
+- [x] lease expiry позволяет подобрать запись после crash;
+- [x] exponential backoff + jitter;
+- [x] quarantine после configurable attempts.
 
 **Готово:** два relay instance не обрабатывают одну lease одновременно; просроченная lease восстанавливается.
 
@@ -110,11 +111,11 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.01, M0.03.
 
-- [ ] topic `identity.events.v1`;
-- [ ] key=`user_id`;
-- [ ] `acks=all` в production config;
-- [ ] bounded send timeout;
-- [ ] error translation без raw payload/token в логе.
+- [x] topic `identity.events.v1`;
+- [x] key=`user_id`;
+- [x] `acks=all` в production config;
+- [x] bounded send timeout;
+- [x] error translation без raw payload/token в логе.
 
 **Готово:** integration test получает schema-valid event из настоящей Kafka.
 
@@ -122,11 +123,11 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.05, M0.06.
 
-- [ ] отдельная команда процесса и DI composition root;
-- [ ] graceful stop;
-- [ ] publish выполняется вне DB-транзакции;
-- [ ] mark-published только после broker ACK;
-- [ ] internal live/ready/metrics без host-published порта.
+- [x] отдельная команда процесса и DI composition root;
+- [x] graceful stop;
+- [x] publish выполняется вне DB-транзакции;
+- [x] mark-published только после broker ACK;
+- [x] internal live/ready/metrics без host-published порта.
 
 **Готово:** контейнер relay запускается отдельно от API и обрабатывает backlog.
 
@@ -134,11 +135,11 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.07.
 
-- [ ] oldest pending age;
-- [ ] pending/quarantined count;
-- [ ] publish duration/result;
-- [ ] structured logs с event/correlation ID;
-- [ ] alert thresholds документированы как baseline.
+- [x] oldest pending age;
+- [x] pending/quarantined count;
+- [x] publish duration/result;
+- [x] structured logs с event/correlation ID;
+- [x] alert thresholds документированы как baseline.
 
 **Готово:** остановка Kafka видна по readiness, lag metric и логам.
 
@@ -146,10 +147,10 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.07.
 
-- [ ] service role в root Compose;
-- [ ] health dependencies без циклического `depends_on`;
-- [ ] CI поднимает Kafka и Identity DB;
-- [ ] container smoke.
+- [x] service role в root Compose;
+- [x] health dependencies без циклического `depends_on`;
+- [x] CI поднимает Kafka и Identity DB;
+- [x] container smoke.
 
 **Готово:** чистый bootstrap запускает API и relay из одного Identity image.
 
@@ -157,11 +158,11 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.09.
 
-- [ ] зарегистрировать user при недоступной Kafka;
-- [ ] доказать наличие user+pending outbox;
-- [ ] вернуть Kafka;
-- [ ] получить ровно один logical event, допускается transport duplicate;
-- [ ] повтор HTTP не создаёт второго user/event.
+- [x] зарегистрировать user при недоступной Kafka;
+- [x] доказать наличие user+pending outbox;
+- [x] вернуть Kafka;
+- [x] получить ровно один logical event, допускается transport duplicate;
+- [x] повтор HTTP не создаёт второго user/event.
 
 **Готово:** тест автоматизирован и стабилен.
 
@@ -169,11 +170,11 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.01–M0.10.
 
-- [ ] code/docs/contracts review;
-- [ ] `git diff --check`;
-- [ ] unit/integration/contract/container tests;
-- [ ] event sample сохранён как acceptance evidence;
-- [ ] известные ограничения записаны.
+- [x] code/docs/contracts review;
+- [x] `git diff --check`;
+- [x] unit/integration/contract/container tests;
+- [x] event sample сохранён как acceptance evidence;
+- [x] известные ограничения записаны.
 
 **Готово:** Profile может полагаться на событие регистрации. Только теперь `M1.01` переводится в `READY`.
 
@@ -185,10 +186,10 @@ WIP-limit для одного разработчика:
 
 ## M0.5.01 — Расширить Identity JWT audiences
 
-- [ ] добавить аудитории Profile, Messages, WS и Storage;
-- [ ] обновить `.env.example` и docs;
-- [ ] unit test issuer;
-- [ ] negative tests wrong audience/issuer/algorithm.
+- [x] добавить аудитории Profile, Messages, WS и Storage;
+- [x] обновить `.env.example` и docs;
+- [x] unit test issuer;
+- [x] negative tests wrong audience/issuer/algorithm.
 
 **Готово:** каждый service verifier принимает только свой audience.
 
@@ -196,12 +197,12 @@ WIP-limit для одного разработчика:
 
 **Зависит от:** M0.5.01.
 
-- [ ] удалить внешний `Authorization`;
-- [ ] извлечь `access_token` cookie;
-- [ ] установить internal Bearer;
-- [ ] прокинуть/сгенерировать `X-Request-Id`;
-- [ ] не логировать credential;
-- [ ] integration tests spoofing/missing/expired token.
+- [x] удалить внешний `Authorization`;
+- [x] извлечь `access_token` cookie;
+- [x] установить internal Bearer;
+- [x] прокинуть/сгенерировать `X-Request-Id`;
+- [x] не логировать credential;
+- [x] integration tests spoofing/missing/expired token.
 
 **Готово:** browser cookie успешно авторизует `/me` и Profile через Gateway, spoofed header не проходит.
 
@@ -375,11 +376,11 @@ WIP-limit для одного разработчика:
 
 ## M3.01 — Зафиксировать command/event contracts
 
-- [ ] `message.send.v1` command;
-- [ ] `message.persisted.v1` для sender и `message.created.v1` для recipient;
+- [x] `message.send.v1` command;
+- [x] `message.persisted.v1` для sender и `message.created.v1` для recipient;
 - [ ] `command.accepted/rejected` WS envelopes;
-- [ ] `client_message_id` semantics;
-- [ ] Kafka key=`dialog_id` для commands, `target_user_id` для events.
+- [x] `clientMessageId` semantics;
+- [x] Kafka key=`dialogId` для commands, `targetUserId` для events.
 
 ## M3.02 — Добавить message/idempotency/projection tables
 

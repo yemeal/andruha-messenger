@@ -417,10 +417,10 @@ Command payload:
 
 ```json
 {
-  "client_message_id": "019c...",
-  "dialog_id": "019c...",
+  "clientMessageId": "019c...",
+  "dialogId": "019c...",
   "text": "Привет",
-  "attachment_ids": []
+  "attachmentIds": []
 }
 ```
 
@@ -432,7 +432,7 @@ Input rules:
 - хотя бы text или attachment;
 - максимум 4 уникальных attachment IDs;
 - порядок attachments сохраняется и входит в fingerprint;
-- sender ID берётся только из authenticated Kafka command metadata.
+- sender ID берётся из authenticated `userId` в payload команды (формируется WebSocket Gateway).
 
 Application command:
 
@@ -523,7 +523,7 @@ def message_event_id(
     )
 ```
 
-Event Kafka key — `target_user_id`, чтобы dispatcher видел per-user order.
+Event Kafka key — wire-поле `targetUserId`, чтобы dispatcher видел per-user order.
 
 При crash после publish до command ACK command приходит снова, но event IDs те
 же. Client и WS Gateway обязаны допускать duplicate event.
@@ -534,11 +534,11 @@ Event Kafka key — `target_user_id`, чтобы dispatcher видел per-user 
 
 ```json
 {
-  "type": "receipt.advance.v1",
+  "commandType": "receipt.advance.v1",
   "payload": {
-    "dialog_id": "019c...",
+    "dialogId": "019c...",
     "kind": "DELIVERED",
-    "through_message_id": "019c..."
+    "throughMessageId": "019c..."
   }
 }
 ```
@@ -558,8 +558,8 @@ Handler:
 9. Опубликовать `receipt.watermark_advanced.v1` target=original sender.
 10. ACK command после event broker ACK.
 
-Event содержит `kind`, `through_message_id`, `through_message_time` и
-`status_version`. Client применяет только большую version.
+Event содержит `kind`, `throughMessageId`, `throughMessageTime` и
+`statusVersion`. Client применяет только большую version.
 
 Преимущество watermark: одно открытие dialog не делает тысячи writes по одной
 на message.
@@ -579,7 +579,7 @@ Client protocol:
 3. Читать `/sync` pages от последнего локально committed cursor.
 4. Сохранить page локально транзакционно.
 5. Только затем сохранить next cursor.
-6. Merge buffered events по `event_id`, `message_id`, `status_version`.
+6. Merge buffered events по wire-полям `eventId`, `messageId`, `statusVersion`.
 7. Отправить delivered watermark после локальной durable обработки.
 
 Если cursor старше 30 дней, вернуть `410 sync.full_resync_required`; client
