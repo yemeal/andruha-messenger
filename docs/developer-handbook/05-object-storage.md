@@ -381,11 +381,11 @@ Presigned URL — bearer capability: любой, кто получил URL до 
 ### Attachment
 
 1. клиент загружает и финализирует все объекты;
-2. отправляет message command с `attachment_ids`;
+2. отправляет message command с wire-полем `attachmentIds`;
 3. Messages проверяет участника диалога;
 4. Messages вызывает batch `validate-use` с коротким timeout;
 5. только после успешной проверки резервирует idempotency key и записывает сообщение;
-6. событие `message.created.v1` содержит immutable attachment snapshot.
+6. событие `message.created.v1` содержит camelCase immutable attachment snapshot.
 
 Если Object Storage недоступен, сообщение с attachments не принимается: `503 messaging.attachment_validation_unavailable`. Текстовое сообщение от Object Storage не зависит.
 

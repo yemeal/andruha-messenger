@@ -46,7 +46,9 @@ Identity Service уже содержит базовые use cases регистр
 - DB commit + Kafka failure оставит пользователя без Profile;
 - retry HTTP может создать дубликаты.
 
-Gate: `G0` из главы 2 полностью зелёный. Только затем создавайте Profile consumer.
+Gate `G0` закрыт. Обязательный default profile создаётся синхронно через
+`ProfileProvisionerProtocol`; будущий Profile consumer допустим только для
+независимых проекций и не участвует в подтверждении регистрации.
 
 ## 7.3. Stage B — интеграционный auth handoff
 

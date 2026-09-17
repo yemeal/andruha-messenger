@@ -393,7 +393,8 @@ Preserve structured JSON production logs, readable development logs, request-ID 
 - Preserve the fixed RS256 algorithm, trusted local key ring selected by `kid`, issuer/audience checks, expiration, token type, and minimal role claim.
 - Do not add profile fields to `/me`; it exposes credential-side identity only.
 - Do not make API Gateway validate JWT or query sessions.
-- Do not add synchronous Identity calls to other services.
+- Do not add synchronous Identity calls to other services except the approved
+  registration-time `ProfileProvisionerProtocol` boundary.
 
 ## 14. Future target - document only, do not implement
 
@@ -403,7 +404,7 @@ The roadmap is tied to the already documented Identity tasks as follows:
 
 | Existing task | Implement in this migration | Planned later change |
 |---|---|---|
-| `AUTH-01` registration | Register credentials in Identity PostgreSQL | Atomically write `identity.user_registered.v1` to an outbox; asynchronously provision the default profile |
+| `AUTH-01` registration | Register credentials in Identity PostgreSQL | Synchronously confirm default profile creation, then atomically commit the user and `identity.user_registered.v1` outbox row; add orphan reconciliation/backfill |
 | `AUTH-02` login | Validate credentials and create the current PostgreSQL session family | Move the session family to Cassandra; add reviewed session/version claims and capacity controls |
 | `AUTH-03` refresh | Use PostgreSQL durable idempotency plus optional Valkey, as specified here | Move the durable rotation/LWT/recoverable result into one Cassandra session partition; evolve the opaque token format |
 | `AUTH-04` logout | Revoke the PostgreSQL session idempotently | Revoke the Cassandra session family with LWT and preserve non-disclosure semantics |
@@ -426,9 +427,14 @@ When sessions move to Cassandra, replace PostgreSQL durable refresh execution wi
 
 This future direction supersedes the current `AUTH-03` diagram branch that treats Valkey outage as an unconditional `503`: once the durable Cassandra path exists, Valkey loss should fall back to that durable path.
 
-### FUT-004 - Registration outbox and profile provisioning
+### FUT-004 - Registration reconciliation and backfill
 
-Add an Identity PostgreSQL transactional outbox. Registration will atomically store the user and `identity.user_registered.v1`; a separate relay will publish it to Kafka, and User Profile Service will create a default profile idempotently. Kafka/Profile failure must delay profile creation without rolling back registration.
+The transactional outbox and synchronous profile provisioning are implemented.
+Registration calls User Profile through `ProfileProvisionerProtocol`; only `204`
+allows Identity to commit the user and `identity.user_registered.v1` outbox row.
+Kafka publication remains asynchronous. Add a durable reconciliation procedure
+for a Profile `204` followed by a failed Identity commit, and backfill legacy
+accounts before claiming the invariant for all stored users.
 
 ### FUT-005 - JWT session/version claims
 
@@ -544,7 +550,7 @@ docker compose up -d identity-postgres valkey identity-service api-gateway
 
 Then demonstrate gateway-routed liveness/readiness and the Auth happy/failure paths with disposable test users and ignored local key files. Stop the temporary stack after verification.
 
-Run the existing strict Pyright job exactly as defined by the target CI workflow. Do not silently replace it with a weaker type checker or configuration.
+Run the existing ty job exactly as defined by the target CI workflow. Do not silently replace it with a weaker type checker or configuration.
 
 If the local Python/Poetry environment is still broken, run the same checks through the existing CI/container mechanism or report them as blocked. Do not claim green from historical PayFlow results.
 

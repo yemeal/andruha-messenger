@@ -115,13 +115,22 @@ Identity, Profile, Messages и WebSocket Gateway локально проверя
 
 Владеет учётной записью: email, password hash, роль, статус и жизненный цикл аутентификационных сессий. Credentials хранятся в PostgreSQL с необходимой strong consistency. Целевая модель refresh-сессий хранится отдельно в Cassandra, а Valkey ускоряет безопасные повторные refresh-запросы, но не является источником истины.
 
-При регистрации Identity атомарно сохраняет пользователя и outbox-событие. Профиль создаётся асинхронно, поэтому сбой Kafka или Profile Service не откатывает уже созданную учётную запись.
+При регистрации Identity через application-порт синхронно создаёт профиль и
+настройки между двумя короткими локальными транзакциями. Первая сохраняет durable
+registration operation, вторая атомарно фиксирует пользователя, outbox-событие и
+completion. Только подтверждение Profile и commit Identity приводят к `201`;
+временный сбой Profile возвращает `202` без зарегистрированного User, а отдельный
+reconciler завершает процесс через lease/fencing и тот же circuit-protected порт.
+Kafka остаётся асинхронным каналом уведомлений и не участвует в подтверждении регистрации.
 
 Identity не владеет display name, bio, locale и аватаром.
 
 ### User Profile Service
 
-Владеет редактируемым профилем: отображаемым именем, описанием, локалью и ссылкой на аватар. Данные хранятся в отдельном PostgreSQL. Профиль создаётся по событию регистрации идемпотентно; для собственного профиля допустимо безопасное lazy creation по валидному JWT subject.
+Владеет редактируемым профилем: отображаемым именем, описанием, локалью и ссылкой
+на аватар. Данные хранятся в отдельном PostgreSQL. Профиль и настройки создаются
+идемпотентной внутренней командой до успешного ответа Identity; пользовательские
+GET-запросы остаются read-only и не выполняют lazy repair.
 
 Конкурирующие изменения защищаются версией профиля и `If-Match`, а не правилом last-write-wins. Сам файл аватара принадлежит Object Storage Service — Profile хранит только ссылку на объект.
 
@@ -228,19 +237,19 @@ Kafka работает в режиме at-least-once. Повторная дос�
 
 ## Текущее состояние и порядок реализации
 
-Сейчас созданы репозитории-скелетоны, hexagonal package boundaries,
-health/readiness bootstrap, logging, request ID middleware, multi-stage
-Dockerfiles, API Gateway и локальный Compose. Runtime dependencies закреплены
-lock-файлами; тесты, quality/security checks, Docker smoke tests и обязательные
-PR rulesets работают в GitHub Actions. Business API, adapters, migrations и
-contracts пока не реализованы.
+Сейчас готовы API Gateway и вертикальный срез Identity → User Profile:
+регистрация, аутентификация, сессии, профили, настройки, PostgreSQL migrations,
+Valkey idempotency, transactional outbox, Kafka relay и восстановление
+регистрации. Межсервисные контракты версионируются в `contracts/`. Messages,
+WebSocket Gateway и Object Storage пока остаются операционными каркасами без
+заявленной бизнес-функциональности.
 
 Рекомендуемая последовательность:
 
 1. **Выполнено:** dependency bootstrap, lock-файлы, базовые тесты и runnable
    health endpoints.
-2. Перенос Identity Service из PayFlow и адаптация refresh flow к отдельному session store.
-3. User Profile Service и асинхронное создание профиля после регистрации.
+2. **Выполнено:** перенос Identity Service, PostgreSQL session store и durable refresh flow.
+3. **Выполнено:** User Profile Service и синхронное создание профиля при регистрации.
 4. Messages and Dialogues Service: 1:1 диалоги, история, idempotent persistence и `/sync`.
 5. WebSocket Gateway: соединения, Kafka commands/events и realtime fan-out.
 6. Delivery/read receipts и ephemeral typing.
