@@ -2,7 +2,7 @@
 
 **Статус:** baseline реализован; CI всех семи репозиториев подтверждён на GitHub
 
-**Дата актуализации:** 2026-08-17
+**Дата актуализации:** 2026-09-15
 **Область:** `andruha-messenger` и шесть сервисных репозиториев
 
 ## 1. Что реализовано
@@ -12,7 +12,7 @@
 
 1. зависимости воспроизводимо устанавливаются из lock-файла;
 2. Ruff проверяет стиль, импорты и форматирование;
-3. Pyright проверяет production-код в строгом режиме;
+3. ty проверяет production-код;
 4. unit- и integration-тесты выполняются раздельными шагами;
 5. суммарное branch coverage приложения должно быть не ниже 80%;
 6. `pip-audit` проверяет runtime-зависимости на известные уязвимости;
@@ -33,7 +33,7 @@
 - пять Python-сервисов имеют runtime/development dependencies и собственный
   `poetry.lock`;
 - каждый Python-сервис содержит 48 unit и 8 integration tests;
-- Ruff, Pyright strict, tests, coverage и `pip-audit` локально проходят на
+- Ruff, ty, tests, coverage и `pip-audit` локально проходят на
   Python 3.14;
 - итоговое branch coverage каждого Python-сервиса равно 100% для текущего
   operational skeleton при обязательном gate 80%;
@@ -109,7 +109,7 @@ dependency-integrity
    +----------+------------+-------------+
    |          |            |             |
    v          v            v             v
-ruff       pyright      unit+integration  security
+ruff         ty         unit+integration  security
                              |             |
                              v             v
                          coverage >= 80  pip-audit + secrets
@@ -135,7 +135,6 @@ Docker build зависит от всех обязательных провер�
 - Git;
 - Python 3.14;
 - Poetry той же версии, что закреплена в Dockerfile и workflow;
-- актуальный Node.js LTS и npm для официального CLI Pyright;
 - Docker Engine или Docker Desktop;
 - `gh` CLI только для настройки GitHub и проверки Actions; сами локальные
   проверки от него не зависят.
@@ -146,8 +145,6 @@ Docker build зависит от всех обязательных провер�
 git --version
 py -3.14 --version
 poetry --version
-node --version
-npm --version
 docker version
 docker compose version
 gh auth status
@@ -208,7 +205,7 @@ release notes выбранных версий и убедиться, что Star
 ### Шаг 3. Объявить development-зависимости
 
 ```powershell
-poetry add --group dev ruff pytest pytest-asyncio pytest-cov httpx2 pip-audit
+poetry add --group dev ruff ty pytest pytest-asyncio pytest-cov httpx2 pip-audit
 ```
 
 Назначение:
@@ -216,14 +213,15 @@ poetry add --group dev ruff pytest pytest-asyncio pytest-cov httpx2 pip-audit
 | Пакет | Зачем нужен |
 |---|---|
 | Ruff | lint, сортировка импортов и форматирование |
+| ty | статическая проверка типов production-кода |
 | pytest | test runner |
 | pytest-asyncio | прямые async-тесты ASGI-компонентов |
 | pytest-cov | сбор line и branch coverage |
 | HTTPX2 | поддерживаемый Starlette transport для TestClient и прямых ASGI-запросов |
 | pip-audit | аудит известных уязвимостей Python-зависимостей |
 
-Pyright не добавляется как Python-пакет. Официальный Pyright CLI работает через
-Node.js/npm; в workflow закрепляется точная npm-версия.
+ty добавляется в dev-группу и фиксируется в `poetry.lock`, поэтому локальная
+проверка и CI используют одну версию без отдельного Node.js toolchain.
 
 ### Шаг 4. Создать и проверить lock-файл
 
@@ -273,13 +271,8 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
 
-[tool.pyright]
+[tool.ty.src]
 include = ["src"]
-exclude = ["**/__pycache__"]
-pythonVersion = "3.14"
-typeCheckingMode = "strict"
-venvPath = "."
-venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -303,11 +296,11 @@ show_missing = true
 skip_covered = true
 ```
 
-Почему выбран один type checker: параллельное использование Pyright и mypy
-создаёт две конфигурации, два набора исключений и часто дублирующиеся сообщения.
-Для greenfield-кода используется один Pyright в `strict`-режиме. Mypy следует
-добавлять только при появлении конкретной зависимости или плагина, который
-проверяется именно им.
+Почему выбран один type checker: параллельное использование нескольких
+проверяющих инструментов создаёт несколько конфигураций, наборов исключений и
+часто дублирующиеся сообщения. Для production-кода используется один ty. Другой
+type checker следует добавлять только при появлении конкретной зависимости или
+плагина, который проверяется именно им.
 
 ## 9. Тесты, которые нужны уже для текущего skeleton
 
@@ -426,22 +419,19 @@ poetry run ruff format --check .
 diff и закоммитить результат. Автоформатирование внутри CI недопустимо: runner
 не должен скрытно менять проверяемый commit.
 
-## 11. Pyright: строгая типизация
+## 11. ty: статическая типизация
 
-Workflow устанавливает точную, закреплённую версию официального npm-пакета:
+Workflow запускает версию, закреплённую в `poetry.lock`:
 
 ```powershell
-npm install --global pyright@1.1.413
-pyright
+poetry run ty check --error-on-warning
 ```
 
-Версия `1.1.413` совпадает с текущими workflow. Значение `latest` не
-используется.
-
-Pyright проверяет `src`, но не требует строгой типизации каждой fixture в
-`tests`. Нельзя отключать strict mode целиком из-за одной нетипизированной
+Текущая версия ty фиксируется Poetry constraint и lock-файлом; `latest` в CI не
+используется. ty проверяет `src`, но не требует типизации каждой fixture в
+`tests`. Нельзя отключать правило целиком из-за одной нетипизированной
 библиотеки. Сначала проверяется наличие актуальных stubs, затем проблема
-локализуется минимальным typed adapter или точечным комментарием с объяснением.
+локализуется минимальным typed adapter или точечным подавлением с объяснением.
 
 ## 12. `pip-audit`: проверка только runtime-зависимостей
 
@@ -806,11 +796,11 @@ developer stack или shared environment.
 Python-сервисов используют один и тот же проверенный baseline:
 
 1. checkout;
-2. Python 3.14 и Node.js 24;
+2. Python 3.14;
 3. Poetry 2.4.1 и poetry-plugin-export 1.10.0;
 4. `poetry check --lock` и `poetry sync`;
 5. Ruff lint/format;
-6. Pyright 1.1.413 strict;
+6. ty из Poetry lock-файла;
 7. unit и integration tests с общим coverage gate 80%;
 8. runtime-only export и `pip-audit`;
 9. отдельный full-history Gitleaks job;
@@ -822,7 +812,6 @@ Python-сервисов используют один и тот же прове�
 |---|---:|---|
 | `actions/checkout` | 7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
 | `actions/setup-python` | 7.0.0 | `5fda3b95a4ea91299a34e894583c3862153e4b97` |
-| `actions/setup-node` | 6.5.0 | `249970729cb0ef3589644e2896645e5dc5ba9c38` |
 | `gitleaks/gitleaks-action` | 3.0.0 | `e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e` |
 | `docker/setup-buildx-action` | 4.2.0 | `bb05f3f5519dd87d3ba754cc423b652a5edd6d2c` |
 | `docker/build-push-action` | 7.3.0 | `53b7df96c91f9c12dcc8a07bcb9ccacbed38856a` |
@@ -923,8 +912,7 @@ poetry sync --with dev --no-root
 poetry run ruff check --output-format=github .
 poetry run ruff format --check .
 
-npm install --global pyright@1.1.413
-pyright
+poetry run ty check --error-on-warning
 
 poetry run coverage erase
 poetry run pytest tests/unit --cov=app --cov-branch --cov-report=
@@ -993,7 +981,7 @@ finally {
 | `poetry.lock` устарел | Изменён ли `pyproject.toml` без lock | Локально выполнить `poetry lock`, изучить diff, commit оба файла |
 | Ruff lint failed | Конкретный rule code и строка | Исправить код или локально применить `ruff check --fix`; не отключать весь rule set |
 | Ruff format failed | Показываемый formatting diff | Выполнить `ruff format .` и commit результата |
-| Pyright failed | Unknown/Any, отсутствующий stub, неверный Optional | Исправить boundary type; suppression делать минимальным и объяснённым |
+| ty failed | Неизвестный импорт, отсутствующий stub, неверный Optional | Исправить boundary type; suppression делать минимальным и объяснённым |
 | Coverage ниже 80% | `coverage report --show-missing` | Добавить тест поведения для непокрытой ветки; не исключать модуль целиком |
 | `pip-audit` finding | Advisory ID и fixed versions | Обновить constraint/lock, затем повторить tests/build |
 | Secret scan failed | Реальный ли credential | Сначала revoke/rotate, затем удалить из истории безопасной процедурой |
@@ -1030,7 +1018,7 @@ CI/CD baseline завершён только если:
 - [x] пять Python-репозиториев имеют **committed и pushed** `poetry.lock`;
 - [x] все импортируемые runtime packages объявлены напрямую;
 - [x] Ruff lint и format checks проходят локально и в GitHub Actions;
-- [x] Pyright strict проходит для `src` пяти сервисов;
+- [x] ty проходит для `src` пяти сервисов;
 - [x] unit и integration suites содержат проверки поведения;
 - [x] branch coverage каждого Python-сервиса не ниже 80%;
 - [x] `pip-audit` проверяет только runtime dependency export;
@@ -1056,8 +1044,8 @@ CI/CD baseline завершён только если:
 - [GitHub: security features и secret scanning](https://docs.github.com/en/code-security/getting-started/github-security-features)
 - [GitHub Container Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [Ruff в GitHub Actions](https://docs.astral.sh/ruff/integrations/)
-- [Pyright: установка официального CLI](https://github.com/microsoft/pyright/blob/main/docs/installation.md)
-- [Pyright: конфигурация strict mode](https://github.com/microsoft/pyright/blob/main/docs/configuration.md)
+- [ty: установка](https://docs.astral.sh/ty/installation/)
+- [ty: конфигурация](https://docs.astral.sh/ty/configuration/)
 - [pytest-cov](https://pytest-cov.readthedocs.io/)
 - [pip-audit](https://github.com/pypa/pip-audit)
 - [Alembic command API](https://alembic.sqlalchemy.org/en/latest/api/commands.html)

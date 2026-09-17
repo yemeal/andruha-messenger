@@ -71,7 +71,7 @@
 
 ---
 
-## AUTH-01. Registration и асинхронное создание профиля
+## AUTH-01. Registration и синхронное создание профиля
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{"actorBkg":"#E8F1FF","actorBorder":"#4C6FFF","signalColor":"#263238","noteBkgColor":"#FFF4CC","activationBkgColor":"#D7E4FF","sequenceNumberColor":"#FFFFFF"}}}%%
@@ -81,8 +81,10 @@ sequenceDiagram
         actor C as Client / Browser
         participant API as API Gateway
     end
-    box rgb(232, 245, 233) Identity
+    box rgb(232, 245, 233) Services
         participant ID as Identity Service
+        participant PA as Profile API
+        participant RR as Registration Reconciler
         participant IR as Identity Outbox Relay
     end
     box rgb(243, 229, 245) Durable Storage
@@ -92,12 +94,9 @@ sequenceDiagram
     box rgb(255, 243, 224) Messaging
         participant K as Kafka
     end
-    box rgb(232, 245, 233) Profile
-        participant PC as Profile Consumer
-    end
 
-    C->>+API: POST /api/v1/auth/register<br/>{email, password}
-    API->>+ID: Forward request + request_id
+    C->>+API: POST /api/v1/auth/register<br/>Idempotency-Key + {email, password}
+    API->>+ID: Forward request + request_id + key
     ID->>ID: Normalize email<br/>validate password policy
 
     alt Invalid payload
@@ -107,7 +106,7 @@ sequenceDiagram
         end
     else Valid payload
         ID->>ID: Argon2id hash outside DB transaction
-        ID->>+IPG: BEGIN<br/>INSERT user ON CONFLICT(email) DO NOTHING
+        ID->>+IPG: Tx A<br/>INSERT CLAIMED RegistrationOperation<br/>reserved user_id + key_hash + lease
         alt Email already exists
             rect rgb(255, 235, 238)
                 IPG-->>ID: conflict / no inserted row
@@ -121,17 +120,42 @@ sequenceDiagram
                 ID-->>API: 503 dependency_unavailable
                 API-->>C: 503 + Retry-After
             end
-        else User inserted
-            rect rgb(232, 245, 233)
-                ID->>IPG: INSERT outbox identity.user_registered.v1<br/>{event_id, user_id, locale, created_at}
-                IPG-->>-ID: COMMIT user + outbox
-                ID-->>-API: 201 {user_id}
-                API-->>-C: 201 {user_id}
+        else Durable operation committed
+            IPG-->>-ID: COMMIT operation
+            ID->>+PA: PUT /internal/v1/profiles/{user_id}<br/>{registered_at} + service token
+            PA->>+PPG: CommandBus transaction<br/>profile + settings + completion
+            alt Profile committed
+                rect rgb(232, 245, 233)
+                    PPG-->>-PA: COMMIT
+                    PA-->>-ID: 204
+                    ID->>IPG: Tx B<br/>fenced COMPLETE operation<br/>INSERT user + outbox
+                    IPG-->>ID: COMMIT operation + user + outbox
+                    ID-->>-API: 201 {user_id}
+                    API-->>-C: 201 {user_id}
+                end
+            else Profile unavailable or circuit open
+                rect rgb(255, 248, 225)
+                    PPG--xPA: error / timeout
+                    PA-->>ID: retryable failure
+                    ID->>IPG: Schedule PENDING<br/>backoff + release claim
+                    ID-->>API: 202 {registration_id, user_id, PENDING}<br/>Retry-After
+                    API-->>C: 202 accepted, not registered yet
+                end
             end
         end
     end
 
-    par Outbox relay runs independently
+    par Registration recovery runs independently
+        loop While due operations exist
+            RR->>+IPG: Claim due/expired operation<br/>FOR UPDATE SKIP LOCKED + fencing token
+            IPG-->>-RR: CLAIMED operation
+            RR->>+PA: Same idempotent PUT through port + circuit breaker
+            PA->>PPG: Durable provisioning command
+            PPG-->>PA: COMMIT / replay completion
+            PA-->>-RR: 204
+            RR->>IPG: Tx B<br/>fenced COMPLETE + INSERT user + outbox
+        end
+    and Outbox relay runs independently
         loop Until Kafka accepts or record is quarantined
             IR->>+IPG: Claim due outbox row<br/>FOR UPDATE SKIP LOCKED
             IPG-->>-IR: claimed event
@@ -145,46 +169,30 @@ sequenceDiagram
                 rect rgb(255, 248, 225)
                     K--xIR: timeout / unavailable
                     IR->>IPG: Return to PENDING<br/>backoff + jitter
-                    Note over IR,K: Registration remains committed.<br/>Profile creation is delayed, not lost.
+                    Note over IR,K: Registration and profile remain committed.<br/>Only downstream notification is delayed.
                 end
-            end
-        end
-    and Profile consumer handles event
-        K->>+PC: identity.user_registered.v1
-        PC->>+PPG: BEGIN<br/>INSERT processed_event IF ABSENT<br/>INSERT default profile IF ABSENT
-        alt First delivery
-            rect rgb(232, 245, 233)
-                PPG-->>PC: COMMIT
-                PC-->>K: ACK offset
-            end
-        else Duplicate delivery
-            rect rgb(255, 248, 225)
-                PPG-->>PC: processed_event already exists
-                PC-->>K: ACK without duplicate profile
-            end
-        else Profile PostgreSQL unavailable
-            rect rgb(255, 235, 238)
-                PPG--xPC: error / timeout
-                PC-->>K: NACK / no offset commit
-                Note over PC,K: Kafka redelivers after recovery.
             end
         end
     end
 
-    opt Identity crashes after COMMIT but before 201
+    opt Identity crashes after Tx B COMMIT but before 201
         rect rgb(255, 248, 225)
-            Note over C,IPG: Client sees an ambiguous result.<br/>Retry returns email conflict, then user may proceed to login.<br/>Adding register Idempotency-Key is a post-MVP hardening option.
+            Note over C,IPG: Client sees an ambiguous result.<br/>Retry with the same Idempotency-Key replays 201.
         end
     end
 ```
 
 ### AUTH-01 decisions
 
-- User and outbox event commit atomically.
-- Profile creation is eventually consistent and idempotent.
-- Kafka or Profile failure does not roll back registration.
-- A missing profile must be treated by Profile API as a temporary provisioning
-  state, not as proof that Identity user does not exist.
+- A successful `201` means both Profile and Identity commits completed.
+- Profile provisioning is synchronous and idempotent; only `204` confirms it.
+- The Profile call is outside SQL transactions and is always made through
+  `ProfileProvisionerProtocol` with a dedicated circuit breaker.
+- A retryable Profile failure returns `202`; no `User` or outbox row exists yet,
+  and the durable process is recovered with lease/fencing and backoff.
+- Kafka is an asynchronous notification path and does not gate registration.
+- Profile `204` followed by an Identity failure can temporarily leave an orphan,
+  but the persisted operation converges it; GET requests remain read-only.
 
 ---
 
@@ -662,7 +670,7 @@ sequenceDiagram
 ### PROF-01 decisions
 
 - Email, password, role and account status never belong to Profile Service.
-- Valid JWT subject is sufficient for lazy creation of the caller's own profile.
+- Valid JWT subject authorizes reads but never creates or repairs a profile.
 - Concurrent edits are detected through version, not last-write-wins.
 
 ---
@@ -1951,7 +1959,8 @@ sequenceDiagram
 
 | Boundary | Durable fence | Retry behavior |
 |---|---|---|
-| Identity registration -> Kafka | PostgreSQL transactional outbox | Relay retries; Profile consumer deduplicates event_id |
+| Identity registration -> Profile | RegistrationOperation + Profile durable idempotency | Reconciler повторяет тот же provisioning через circuit breaker |
+| Identity outbox -> Kafka | PostgreSQL transactional outbox | Relay повторяет; consumers дедуплицируют event_id |
 | Refresh rotation | Cassandra LWT + recoverable rotation result | Same Idempotency-Key returns same token pair |
 | WS command -> Kafka | Kafka broker ACK | No command.accepted before ACK |
 | Kafka command -> Cassandra | Canonical idempotency snapshot | Redelivery repairs projections |

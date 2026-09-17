@@ -2,38 +2,58 @@
 
 ## Итог этапа
 
-После этой главы регистрация не зависит от доступности Profile/Kafka, но каждый
-зарегистрированный user в итоге получает ровно один профиль:
+Регистрация синхронно создаёт профиль и настройки. Identity возвращает `201`
+только после подтверждения User Profile и собственного commit. Доступность
+Profile теперь необходима для регистрации; доступность Kafka по-прежнему нет.
 
 ```text
-Identity PostgreSQL transaction
-  = user + identity.user_registered.v1 outbox row
-        -> relay -> Kafka
-        -> Profile processed_events + profiles transaction
+Identity Tx A -> INSERT durable RegistrationOperation + claim -> COMMIT
+  -> PUT User Profile /internal/v1/profiles/{user_id} (outside SQL transaction)
+     -> Profile CommandBus -> COMMIT profile + settings + completion -> 204
+  -> Identity Tx B -> INSERT user + outbox + COMPLETE operation -> COMMIT -> 201
+  -> relay -> Kafka (notification for other consumers)
 ```
 
-Identity-часть этого этапа — contract, atomic outbox и работающий relay —
-является отдельным обязательным gate. Сначала заверши и проверь её, **не меняя
-Profile Service**. Только после этого начинай Profile schema, consumer и HTTP
-API. Так зависимость видна и в коде, и на Kanban, а не существует как устная
-договорённость.
+Решение от 2026-09-11 заменяет асинхронное provisioning и lazy repair.
+Описание ниже сохраняет outbox/relay как механизм уведомления. SQL и примеры
+из первоначального плана иллюстративны; текущие migrations и application-порты
+в сервисах являются источником истины.
 
-## 1. Почему нельзя вызвать Profile синхронно из register
+## 1. Синхронный контракт регистрации
 
-Плохой flow:
+Identity вызывает application-порт `ProfileProvisionerProtocol`; HTTP-адаптер
+находится в infrastructure, настройки — в `core/settings`, сборка — в Dishka.
 
 ```text
-Identity INSERT user -> HTTP Profile create -> return 201
+PUT /internal/v1/profiles/{user_id}
+X-Service-Token: <shared secret>
+{"registered_at": "2026-09-11T10:15:30.120Z"}
 ```
 
-Если Profile недоступен, возникает выбор без правильного ответа:
+Только `204` подтверждает создание профиля и настроек. При сетевом или временном
+отказе Identity повторяет запрос один раз с теми же UUID и timestamp. Если обе
+попытки не подтверждены, Identity возвращает `202` с `Retry-After`: операция
+сохранена, но зарегистрированного `User` ещё нет. Повтор выполняется с тем же
+`Idempotency-Key`; recovery worker также подберёт операцию после `available_at`.
 
-- откатить уже нужного Identity user;
-- вернуть 503 после commit и получить ambiguous registration;
-- оставить user без profile без durable retry.
+Вызов защищён отдельным application-scoped circuit breaker. Transport errors и
+retryable `5xx` учитываются как сбой зависимости; постоянные `4xx`, включая
+`409`, не открывают circuit и не повторяются. Для `423`/`429` учитывается
+`Retry-After`, ограниченный `PROFILE_SERVICE_RETRY_MAX_DELAY_SECONDS`. После
+порога `PROFILE_SERVICE_CB_FAILURES` новые регистрации завершаются fail-fast;
+после `PROFILE_SERVICE_CB_RECOVERY_SECONDS` допускается один HALF_OPEN probe.
 
-Outbox разрывает availability coupling. Регистрация заканчивается после
-Identity commit. Профиль появляется eventually.
+Это две короткие локальные транзакции с сетевым вызовом между ними. Потерянный
+ответ Profile или ошибка второй Identity-транзакции может временно оставить профиль
+без аккаунта, но durable operation сохраняет `user_id`, timestamp и credential data,
+необходимые для идемпотентного завершения. Recovery использует `FOR UPDATE SKIP LOCKED`,
+lease и fencing token. После исчерпания retry либо постоянного отказа операция
+переходит в `BLOCKED` и требует явного redrive. Повтор после потерянного `201` с тем
+же ключом возвращает сохранённый успешный результат.
+
+Гарантия относится к новым успешным регистрациям на момент ответа. Старым
+аккаунтам без профилей требуется отдельный backfill. Удаление данных вручную
+или независимое восстановление БД не исправляется через пользовательский GET.
 
 ## 2. Контракт `identity.user_registered.v1`
 
@@ -41,16 +61,16 @@ Identity commit. Профиль появляется eventually.
 
 ```json
 {
-  "event_id": "019c...",
-  "event_type": "identity.user_registered.v1",
-  "schema_version": 1,
-  "occurred_at": "2026-08-17T10:15:30.123Z",
+  "eventId": "019c...",
+  "eventType": "identity.user_registered.v1",
+  "schemaVersion": 1,
+  "occurredAt": "2026-08-17T10:15:30.123Z",
   "producer": "andruha-identity-service",
-  "correlation_id": "019c...",
-  "causation_id": "019c...",
+  "correlationId": "019c...",
+  "causationId": "019c...",
   "payload": {
-    "user_id": "019c...",
-    "registered_at": "2026-08-17T10:15:30.120Z"
+    "userId": "019c...",
+    "registeredAt": "2026-08-17T10:15:30.120Z"
   }
 }
 ```
@@ -63,7 +83,7 @@ Email, password hash, role, account status и token в event запрещены.
 расширение contract и registration request. Identity не должен сохранять
 locale как credential field.
 
-Kafka topic: `identity.events.v1`; key: `user_id`.
+Kafka topic: `identity.events.v1`; key: wire-поле `userId`.
 
 ## 3. Identity outbox model
 
@@ -109,44 +129,37 @@ CREATE INDEX ix_outbox_expired_processing
 `payload` хранит готовый versioned envelope. Relay не должен заново собирать
 business event и менять `event_id`/`occurred_at` при retry.
 
-## 4. Атомарное изменение registration
+## 4. Durable registration process
 
-Сейчас Identity `AuthService.register` сохраняет user. Расширь тот же UoW
-outbox repository. Hash password остаётся вне transaction.
+Регистрация вынесена из `AuthService` в отдельный application use case.
+`RegistrationOperation` является process manager, а не доменным `User`.
+Hash password остаётся вне transaction и очищается из operation после completion.
 
 ```python
-async def register(self, email: str, password: str) -> User:
-    normalized = Email(email)
-    password_hash = await self._password_hasher.hash(password)  # outside UoW
-    now = self._clock.now()
-    user = User.register(
+password_hash = await password_hasher.hash(password)
+
+async with transaction_a:
+    operation = await registrations.try_create_claimed(
         user_id=uuid7(),
-        email=normalized,
+        email=normalized_email,
         password_hash=password_hash,
-        now=now,
+        key_hash=sha256(idempotency_key),
     )
-    event_id = uuid7()
 
-    async with self._uow_factory() as uow:
-        inserted = await uow.users.add_if_email_absent(user)
-        if not inserted:
-            raise UserAlreadyExistsError()
+await profile_provisioner.create_profile(
+    operation.user_id,
+    operation.created_at,
+)
 
-        await uow.outbox.add(
-            OutboxMessage.identity_user_registered(
-                event_id=event_id,
-                user_id=user.id,
-                registered_at=now,
-                correlation_id=self._correlation_id.current(),
-            )
-        )
-        await uow.commit()
-
-    return user
+async with transaction_b:
+    await registrations.complete(operation.id, owner_token=claim_token)
+    user = await users.create_if_absent(operation.to_user())
+    await events.publish(UserRegisteredEvent.from_user(user))
 ```
 
 Проверяемый invariant: не существует committed user, созданного новым кодом,
-без соответствующей outbox row, и не существует outbox event без user.
+без подтверждённого Profile и соответствующей outbox row. Временный Profile без
+User имеет durable operation и автоматически завершается после восстановления.
 
 Тест commit failure должен доказать отсутствие обеих строк.
 
@@ -247,8 +260,10 @@ Kafka outage сам по себе не является permanent failure.
 
 | Момент crash | Recovery |
 |---|---|
-| До Identity commit | Нет user и event |
-| После commit до HTTP 201 | User/event есть; client может увидеть email conflict при retry |
+| До Tx A | Нет operation, user и event |
+| После Tx A до Profile | Lease истекает, reconciler повторяет Profile PUT |
+| После Profile 204 до Tx B | Reconciler повторяет идемпотентный PUT и завершает Tx B |
+| После Tx B до HTTP 201 | Повтор с тем же Idempotency-Key возвращает `201` |
 | После claim до publish | Lease истекает, другой relay повторяет |
 | После Kafka ACK до SUCCESS | Event публикуется повторно |
 | После SUCCESS | Больше не claim-ится |
@@ -313,49 +328,24 @@ Profile fields:
 Не используй email как default display name: он раскрывает credential-side PII.
 Безопасный default — `Пользователь` или локализуемый client placeholder.
 
-## 8. Idempotent Profile consumer
+## 8. Идемпотентное создание Profile через HTTP
 
-Одна PostgreSQL transaction должна вставить Inbox fence и default profile:
+Внутренний PUT вызывает существующий `CreateDefaultProfileCommand` через
+CommandBus с `HOT_DURABLE` и `COMPLETION_ONLY`. Ключ — `user_id`, scope —
+`identity:profile-provisioning`. Повтор должен содержать тот же `registered_at`.
+Профиль, настройки и durable completion фиксируются одной транзакцией Profile.
+`create_default_if_absent` сохраняет пользовательские изменения при повторах.
+Новый Inbox и consumer для provisioning не нужны.
 
-```python
-async def handle_user_registered(envelope: UserRegisteredEnvelope) -> None:
-    async with uow_factory() as uow:
-        first_delivery = await uow.processed_events.add_if_absent(
-            consumer="profile.user_registered.v1",
-            event_id=envelope.event_id,
-            event_type=envelope.event_type,
-        )
-        if not first_delivery:
-            await uow.rollback()
-            return
+Отсутствующий/неверный `X-Service-Token` даёт `401`, ненастроенный
+`INTERNAL_API_TOKEN` — `503`. Gateway не публикует `/internal`.
 
-        await uow.profiles.add_default_if_absent(
-            user_id=envelope.payload.user_id,
-            display_name="Пользователь",
-            locale=settings.DEFAULT_PROFILE_LOCALE,
-            now=clock.now(),
-        )
-        await uow.commit()
-```
+## 9. Чтение без восстановления
 
-Offset подтверждается только после commit. Если commit неизвестен из-за
-connection loss, event redelivery безопасна: `processed_events` и `profiles`
-имеют durable uniqueness.
-
-Consumer не обращается обратно в Identity.
-
-## 9. Lazy repair профиля
-
-Event delivery может задержаться. `GET /profiles/me` по валидному JWT может
-выполнить `INSERT default profile ON CONFLICT DO NOTHING`, затем прочитать
-строку.
-
-Это repair path, а не замена event integration:
-
-- event создаёт профиль для пользователя, который ещё не открыл UI;
-- lazy creation закрывает broker lag/операционную задержку;
-- поздний event делает `INSERT ... ON CONFLICT DO NOTHING`;
-- consumer никогда не перезаписывает уже изменённый профиль default-значениями.
+GET `/api/v1/profiles/me` и `/api/v1/settings` только читают данные.
+Отсутствующие данные владельца возвращают `404`. `EnsureOwnProfile` и
+`application/services` удалены. Подтверждённый completion не следует использовать
+как способ повторного восстановления вручную удалённых записей.
 
 ## 10. Profile HTTP API
 
@@ -494,18 +484,14 @@ database winner, либо возвращай новый экземпляр по�
 
 ## 12. DI и process roles
 
-Profile repository должен иметь две roles:
+Profile обслуживает чтение и provisioning через HTTP:
 
 ```text
 HTTP API:
-  FastAPI -> use cases -> PostgreSQL
-
-Kafka consumer:
-  FastStream -> UserRegistered handler -> PostgreSQL Inbox/Profile UoW
+  FastAPI -> query handlers / CommandBus -> PostgreSQL
 ```
 
-Можно собирать общий infrastructure provider, но request/message UoW scopes
-должны быть независимыми.
+Dishka собирает зависимости; каждый command dispatch получает собственный UoW.
 
 Runtime dependencies добавляй только когда вводишь adapter:
 
@@ -514,7 +500,6 @@ Runtime dependencies добавляй только когда вводишь ada
 - SQLAlchemy async + asyncpg;
 - Alembic;
 - PyJWT/cryptography для local access verification;
-- FastStream Kafka + aiokafka для consumer;
 - Prometheus client;
 - testcontainers PostgreSQL/Kafka для integration tests.
 
@@ -534,11 +519,10 @@ Kafka health.
 Добавь:
 
 - `DATABASE_*` на `profile-postgres`;
-- Kafka bootstrap/topic/group;
+- `INTERNAL_API_TOKEN` совпадает с Identity `PROFILE_SERVICE_TOKEN`;
 - Identity public-key secret mount;
 - service audience;
 - `profile-service` depends on healthy PostgreSQL;
-- `profile-consumer` depends on PostgreSQL и Kafka согласно role startup;
 - migration execution без гонки нескольких replicas.
 
 Для локального MVP один container может выполнить Alembic перед startup. Для
@@ -572,12 +556,12 @@ Kafka health.
 - entity/value objects;
 - PostgreSQL migration;
 - repositories/UoW;
-- consumer processed-event fence.
+- внутренний PUT и существующий durable CommandBus.
 
 ### PROF-02 — Own profile HTTP
 
 - JWT verifier;
-- GET lazy repair;
+- GET без побочных эффектов;
 - PATCH optimistic concurrency;
 - error/ETag contract.
 
@@ -601,13 +585,14 @@ Kafka health.
 - expired lease забирается новым worker;
 - raw email отсутствует в event/log/metric labels.
 
-### Profile consumer
+### Profile provisioning
 
-- first event создаёт profile и Inbox row атомарно;
-- duplicate event ничего не дублирует;
-- transaction failure не подтверждает offset;
-- lazy profile, затем event не перезаписывает изменения;
-- event, затем lazy GET возвращает ту же строку.
+- первый PUT атомарно создаёт профиль, настройки и completion;
+- повторный/конкурентный PUT не дублирует данные;
+- rollback не оставляет частично созданный профиль;
+- повтор сохраняет пользовательские изменения;
+- неверный service token не выполняет команду;
+- отказ Profile не оставляет Identity user/outbox.
 
 ### Profile HTTP
 
@@ -623,12 +608,16 @@ Kafka health.
 
 ### Сквозной acceptance
 
-Given Identity, Kafka, relay, Profile consumer и PostgreSQL запущены,
+Given Identity, Profile и PostgreSQL запущены,
 when новый пользователь регистрируется,
-then registration возвращает `201`, а Profile API eventually возвращает один
-default profile с тем же `user_id`.
+then registration возвращает `201`, и Profile API сразу возвращает профиль
+и настройки с тем же `user_id`.
 
 Given Kafka недоступна во время регистрации,
 when пользователь успешно зарегистрирован,
-then user и pending outbox остаются committed; после восстановления Kafka
-профиль создаётся без повторной регистрации.
+then профиль уже существует, user и pending outbox остаются committed;
+после восстановления Kafka relay публикует уведомление.
+
+Given Profile недоступен во время регистрации,
+then Identity возвращает `202`, user/outbox не фиксируются, login невозможен,
+а durable operation повторяется reconciler-ом с backoff через тот же порт и circuit breaker.

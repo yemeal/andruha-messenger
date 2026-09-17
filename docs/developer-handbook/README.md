@@ -14,7 +14,7 @@
 полный согласованный MVP:
 
 1. регистрацию, login, refresh, logout и получение текущей identity;
-2. гарантированное событие о регистрации и асинхронное создание профиля;
+2. синхронное создание профиля и гарантированное событие о регистрации;
 3. чтение и конкурентно-безопасное редактирование профиля;
 4. создание личного диалога 1:1;
 5. список диалогов и cursor-based историю сообщений;
@@ -70,15 +70,19 @@
 - зашифрованный AES-256-GCM replay-result;
 - Valkey как необязательный hot path;
 - logout и `/me`;
-- PostgreSQL migration, readiness, metrics, unit и integration tests.
+- синхронный Profile provisioning через application port, bounded retry и
+  circuit breaker;
+- durable registration operation, reconciler с lease/fencing и явный redrive;
+- transactional outbox и отдельный Kafka relay;
+- PostgreSQL migrations, readiness, metrics, unit, integration и E2E tests.
 
-Identity пока **не создаёт** событие о регистрации пользователя. В его схеме
-нет registration outbox, relay и контракта `identity.user_registered.v1`.
-Это первый обязательный пробел, который нужно закрыть.
+`services/user-profile-service` содержит рабочие профили и настройки,
+PostgreSQL/Valkey adapters, локальную JWT-проверку, optimistic concurrency и
+идемпотентный внутренний provisioning. Успешная регистрация Identity (`201`)
+означает, что Profile уже подтвердил создание профиля и настроек.
 
 ### Пока являются скелетонами
 
-- `services/user-profile-service`;
 - `services/messages-dialogues-service`;
 - `services/websocket-gateway-service`;
 - `services/object-storage-service`.
@@ -113,7 +117,7 @@ Poetry lock и CI. Бизнес-моделей, persistence adapters и конт
 |---|---|
 | FR-001 | Identity должен атомарно сохранять нового пользователя и outbox-событие `identity.user_registered.v1`. |
 | FR-002 | Identity relay должен повторять публикацию события до Kafka ACK; повторная публикация должна быть безопасной. |
-| FR-003 | Profile consumer должен создать ровно один профиль для `user_id`, даже если событие доставлено несколько раз. |
+| FR-003 | Внутренняя идемпотентная команда Profile должна создать ровно один профиль и настройки до успешного ответа регистрации. |
 | FR-004 | Пользователь должен читать и редактировать только свой профиль с optimistic concurrency через `If-Match`/version. |
 | FR-005 | Система должна создавать не более одного личного диалога для одной канонической пары пользователей. |
 | FR-006 | Пользователь должен получать список своих диалогов и cursor-based историю конкретного диалога. |
@@ -133,7 +137,7 @@ Poetry lock и CI. Бизнес-моделей, persistence adapters и конт
 | Требования | Владелец результата | Milestone / gate | Главная acceptance-проверка |
 |---|---|---|---|
 | FR-001–002 | Identity API + outbox relay | M0 / G0 | регистрация при недоступной Kafka, затем публикация после recovery |
-| FR-003–004 | Profile consumer + API | M1 / G1 | duplicate event создаёт один profile; concurrent PATCH имеет одного winner |
+| FR-003–004 | Profile internal API + public API | M1 / G1 | повтор provisioning создаёт один profile; concurrent PATCH имеет одного winner |
 | FR-005–006 | Messages and Dialogues | M2 / G2 | concurrent create даёт один dialog; cursor pages без дублей/пропусков |
 | FR-007–008 | WS Gateway + Messages worker | M3 / G3 | потерянный ACK и повтор command дают один canonical message |
 | FR-009–011 | Messages + WS dispatcher/Gateway | M4 / G4 | online fan-out, offline reconnect и `/sync`, монотонные receipts |
@@ -162,26 +166,19 @@ Poetry lock и CI. Бизнес-моделей, persistence adapters и конт
 
 ## 7. Порядок вертикальных milestone
 
-### M0 — Registration integration
+### M0 — Registration integration — выполнено
 
-Сначала реализуются:
+Identity сохраняет durable registration operation, синхронно вызывает Profile
+через защищенный порт и после `204` атомарно фиксирует user + outbox. Relay
+публикует `identity.user_registered.v1` независимо от HTTP-ответа, а reconciler
+восстанавливает неоднозначные и прерванные операции.
 
-1. JSON Schema события `identity.user_registered.v1`;
-2. `outbox_messages` в Identity PostgreSQL;
-3. запись user + outbox в одной транзакции;
-4. отдельный relay с lease, retry, backoff и safe republish;
-5. тест Identity при падении Kafka: регистрация успешна, event остаётся pending;
-6. тест восстановления: relay публикует сохранённый event после recovery.
+### M1 — Profile text slice — выполнено
 
-До выполнения этих пунктов бизнес-реализация Profile Service не начинается.
-Это отдельный обязательный gate, а не первая часть Profile-разработки.
-
-### M1 — Profile text slice
-
-Результат: idempotent consumer `identity.user_registered.v1`, GET/PATCH
-собственного профиля, lazy repair, ETag/version conflict, локальная
+Результат: синхронная идемпотентная команда создания профиля, GET/PATCH
+собственного профиля без lazy repair, ETag/version conflict, локальная
 JWT-проверка, PostgreSQL migration и сквозной тест
-`register -> Kafka -> default profile`.
+`register -> default profile -> identity outbox`.
 
 ### M2 — Dialogues over HTTP
 
@@ -283,7 +280,7 @@ Backend возвращает стабильный `code` и параметры, 
 - readiness отражает реальную обязательную зависимость;
 - логи проверены на отсутствие секретов и контента;
 - README сервиса объясняет запуск и новые гарантии;
-- Ruff, strict Pyright, tests, coverage, audit и Docker smoke проходят;
+- Ruff, ty, tests, coverage, audit и Docker smoke проходят;
 - фактически не выполненные проверки явно записаны.
 
 ## 10. Контролируемые решения и открытые границы
