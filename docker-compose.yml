@@ -29,6 +29,21 @@ services:
       DEV_LOGS: ${DEV_LOGS:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      RUN_MIGRATIONS: "true"
+      PROFILE_SERVICE_URL: http://user-profile-service:8002
+      PROFILE_SERVICE_TOKEN: ${PROFILE_PROVISIONING_TOKEN:-profile-provisioning-local-only}
+      PROFILE_SERVICE_TIMEOUT_SECONDS: ${PROFILE_SERVICE_TIMEOUT_SECONDS:-3}
+      PROFILE_SERVICE_RETRY_DELAY_SECONDS: ${PROFILE_SERVICE_RETRY_DELAY_SECONDS:-0.1}
+      PROFILE_SERVICE_RETRY_MAX_DELAY_SECONDS: ${PROFILE_SERVICE_RETRY_MAX_DELAY_SECONDS:-1}
+      PROFILE_SERVICE_CB_FAILURES: ${PROFILE_SERVICE_CB_FAILURES:-5}
+      PROFILE_SERVICE_CB_RECOVERY_SECONDS: ${PROFILE_SERVICE_CB_RECOVERY_SECONDS:-30}
+      REGISTRATION_CLAIM_LEASE_SECONDS: ${REGISTRATION_CLAIM_LEASE_SECONDS:-30}
+      REGISTRATION_RETRY_INITIAL_SECONDS: ${REGISTRATION_RETRY_INITIAL_SECONDS:-1}
+      REGISTRATION_RETRY_MAX_SECONDS: ${REGISTRATION_RETRY_MAX_SECONDS:-60}
+      REGISTRATION_RETRY_EXPONENT: ${REGISTRATION_RETRY_EXPONENT:-2}
+      REGISTRATION_RETRY_JITTER_RATIO: ${REGISTRATION_RETRY_JITTER_RATIO:-0.2}
+      REGISTRATION_RETRY_MAX_ATTEMPTS: ${REGISTRATION_RETRY_MAX_ATTEMPTS:-10}
     expose:
       - "8001"
     secrets:
@@ -43,6 +58,83 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    depends_on:
+      identity-postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - andruha
+
+  identity-relay:
+    image: andruha/identity-service:0.1.0
+    build:
+      context: ./services/identity-service
+      target: runtime
+    command: ["python", "-m", "app.entrypoints.messaging.relay"]
+    environment:
+      SERVICE_NAME: andruha-identity-relay
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DEV_LOGS: ${DEV_LOGS:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
+      RUN_MIGRATIONS: "false"
+    secrets:
+      - identity_jwt_private_key
+      - identity_replay_key
+    configs:
+      - source: identity_jwt_public_key
+        target: /run/configs/identity_jwt_public_key
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - andruha
+
+  identity-registration-reconciler:
+    image: andruha/identity-service:0.1.0
+    build:
+      context: ./services/identity-service
+      target: runtime
+    command: ["python", "-m", "app.entrypoints.maintenance.registration_reconciler"]
+    environment:
+      SERVICE_NAME: andruha-identity-registration-reconciler
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DEV_LOGS: ${DEV_LOGS:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
+      RUN_MIGRATIONS: "false"
+      PROFILE_SERVICE_URL: http://user-profile-service:8002
+      PROFILE_SERVICE_TOKEN: ${PROFILE_PROVISIONING_TOKEN:-profile-provisioning-local-only}
+      PROFILE_SERVICE_TIMEOUT_SECONDS: ${PROFILE_SERVICE_TIMEOUT_SECONDS:-3}
+      PROFILE_SERVICE_RETRY_DELAY_SECONDS: ${PROFILE_SERVICE_RETRY_DELAY_SECONDS:-0.1}
+      PROFILE_SERVICE_RETRY_MAX_DELAY_SECONDS: ${PROFILE_SERVICE_RETRY_MAX_DELAY_SECONDS:-1}
+      PROFILE_SERVICE_CB_FAILURES: ${PROFILE_SERVICE_CB_FAILURES:-5}
+      PROFILE_SERVICE_CB_RECOVERY_SECONDS: ${PROFILE_SERVICE_CB_RECOVERY_SECONDS:-30}
+      REGISTRATION_POLL_INTERVAL_SECONDS: ${REGISTRATION_POLL_INTERVAL_SECONDS:-2}
+      REGISTRATION_BATCH_SIZE: ${REGISTRATION_BATCH_SIZE:-25}
+      REGISTRATION_CLAIM_LEASE_SECONDS: ${REGISTRATION_CLAIM_LEASE_SECONDS:-30}
+      REGISTRATION_RETRY_INITIAL_SECONDS: ${REGISTRATION_RETRY_INITIAL_SECONDS:-1}
+      REGISTRATION_RETRY_MAX_SECONDS: ${REGISTRATION_RETRY_MAX_SECONDS:-60}
+      REGISTRATION_RETRY_EXPONENT: ${REGISTRATION_RETRY_EXPONENT:-2}
+      REGISTRATION_RETRY_JITTER_RATIO: ${REGISTRATION_RETRY_JITTER_RATIO:-0.2}
+      REGISTRATION_RETRY_MAX_ATTEMPTS: ${REGISTRATION_RETRY_MAX_ATTEMPTS:-10}
+      REGISTRATION_SHUTDOWN_TIMEOUT_SECONDS: ${REGISTRATION_SHUTDOWN_TIMEOUT_SECONDS:-30}
+    secrets:
+      - identity_jwt_private_key
+      - identity_replay_key
+    configs:
+      - source: identity_jwt_public_key
+        target: /run/configs/identity_jwt_public_key
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      user-profile-service:
+        condition: service_healthy
     networks:
       - andruha
 
@@ -60,14 +152,41 @@ services:
       DEV_LOGS: ${DEV_LOGS:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
+      PROFILE_POSTGRES_HOST: profile-postgres
+      PROFILE_POSTGRES_PORT: "5432"
+      PROFILE_POSTGRES_USER: ${PROFILE_POSTGRES_USER:-andruha_profile}
+      PROFILE_POSTGRES_PASSWORD: ${PROFILE_POSTGRES_PASSWORD:-profile-local-only}
+      PROFILE_POSTGRES_DB: ${PROFILE_POSTGRES_DB:-andruha_profile}
+      PROFILE_REDIS_HOST: valkey
+      PROFILE_REDIS_PORT: "6379"
+      PROFILE_REDIS_DB: "1"
+      JWT_PUBLIC_KEYS: '{"identity-v1":"/run/configs/identity_jwt_public_key"}'
+      JWT_ISSUER: andruha-identity-service
+      JWT_AUDIENCE: andruha-user-profile-service
+      INTERNAL_API_TOKEN: ${PROFILE_PROVISIONING_TOKEN:-profile-provisioning-local-only}
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head &&
+        exec uvicorn --factory app.entrypoints.http.main:create_app
+        --host 0.0.0.0 --port 8002
     expose:
       - "8002"
+    configs:
+      - source: identity_jwt_public_key
+        target: /run/configs/identity_jwt_public_key
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/ready', timeout=2).read()"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 10s
+    depends_on:
+      profile-postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
     networks:
       - andruha
 
