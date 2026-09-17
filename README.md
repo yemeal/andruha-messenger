@@ -1,120 +1,285 @@
+<div align="center">
+
 # Andruha Messenger
 
-Andruha Messenger — учебно-практический MVP мессенджера на микросервисной архитектуре. Этот репозиторий является **интеграционным**: он фиксирует совместимые версии сервисов через Git submodules, хранит межсервисные контракты, общую документацию и локальную Docker Compose-топологию.
+### Distributed messenger backend built for reliability, security and horizontal scale
 
-## Текущий статус
+Backend мессенджера на микросервисной архитектуре, спроектированный
+с акцентом на **распределённость, отказоустойчивость, безопасность
+и масштабирование под высокую нагрузку**.
 
-| Компонент | Назначение | Статус |
-|---|---|---|
-| [API Gateway](services/api-gateway) | NGINX-маршрутизация и доверенная передача авторизации | готов для текущих HTTP API |
-| [Identity Service](services/identity-service) | регистрация, вход, сессии, refresh/logout, публикация событий | готов для MVP |
-| [User Profile Service](services/user-profile-service) | профили, настройки приватности и внутренний provisioning | готов для MVP |
-| [Messages and Dialogues](services/messages-dialogues-service) | диалоги, сообщения и статусы прочтения | операционный каркас |
-| [WebSocket Gateway](services/websocket-gateway-service) | realtime-соединения и доставка | операционный каркас |
-| [Object Storage](services/object-storage-service) | метаданные и доступ к медиа | операционный каркас |
+<br>
 
-Готовый вертикальный срез сейчас — регистрация и аутентификация пользователя с синхронным созданием профиля. Таблица не выдает health-check каркаса за готовую бизнес-функцию.
+[![Integration](https://github.com/yemeal/andruha-messenger/actions/workflows/integration.yml/badge.svg)](https://github.com/yemeal/andruha-messenger/actions/workflows/integration.yml)
+![Python](https://img.shields.io/badge/Python_3.14-3776AB?logo=python\&logoColor=white)
 
-## Компонентная схема
+### Технологический стек:
+
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi\&logoColor=white)
+![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic\&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00)
+![Alembic](https://img.shields.io/badge/Alembic-6BA81E)
+![Dishka](https://img.shields.io/badge/DI-Dishka-blue)
+
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql\&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-FF4438?logo=redis\&logoColor=white)
+![Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?logo=apachekafka\&logoColor=white)
+![Cassandra](https://img.shields.io/badge/Cassandra-1287B1?logo=apachecassandra\&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-C72E49?logo=minio\&logoColor=white)
+![Elasticsearch](https://img.shields.io/badge/Elasticsearch-005571?logo=elasticsearch\&logoColor=white)
+
+![NGINX](https://img.shields.io/badge/NGINX-009639?logo=nginx\&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker\&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions\&logoColor=white)
+![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest\&logoColor=white)
+![Ruff](https://img.shields.io/badge/Ruff-D7FF64?logo=ruff\&logoColor=black)
+[![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
+
+</div>
+
+---
+
+## О проекте
+
+**Andruha Messenger** — backend распределённого мессенджера, построенный как набор независимо развёртываемых и масштабируемых сервисов.
+
+Архитектура рассчитана на разделение нагрузки между независимыми компонентами, отказ отдельных узлов без остановки всей системы, асинхронную обработку событий и горизонтальное масштабирование наиболее нагруженных частей.
+
+Разные типы данных обслуживаются специализированными хранилищами в зависимости от их access pattern: PostgreSQL используется для транзакционных данных, Cassandra — для сообщений, Redis — для кеширования и ephemeral state, Elasticsearch — для поиска, MinIO — для объектов и медиа.
+
+Внешний трафик разделён между HTTP API, WebSocket-соединениями и загрузкой медиа. Это позволяет масштабировать realtime, API и object delivery независимо друг от друга.
+
+Корневой репозиторий выступает как integration repository и фиксирует совместимые версии сервисов через Git submodules.
+
+---
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    Client[Web / Mobile client] --> Gateway[API Gateway\nNGINX]
+    Clients["Web / Mobile Clients"]
 
-    Gateway --> Identity[Identity Service]
-    Gateway --> Profile[User Profile Service]
-    Gateway -. planned API .-> Messages[Messages & Dialogues]
-    Gateway -. planned API .-> Objects[Object Storage]
-    Client -. planned realtime .-> WS[WebSocket Gateway]
+    LB["Load Balancer"]
+    Gateway["API Gateway"]
 
-    Identity -- "sync provisioning\nport + retry + circuit breaker" --> Profile
-    Identity --> IdentityDB[(PostgreSQL)]
-    Identity --> Valkey[(Valkey)]
-    Identity -- transactional outbox --> Kafka[(Kafka)]
+    Identity["Auth / Identity Service"]
+    Profile["User Profile Service"]
+    Messages["Messages & Dialogues Service"]
+    Objects["Object Storage Gateway Service"]
+    WS["WebSocket Gateway Service"]
+    Notifications["Notifications Service"]
+    Search["Search Service"]
 
-    Profile --> ProfileDB[(PostgreSQL)]
-    Profile --> Valkey
+    Queue["Event Bus / Queue"]
 
-    Messages -. planned .-> Cassandra[(Cassandra)]
-    Objects -. planned .-> ObjectDB[(PostgreSQL)]
-    Objects -. planned .-> MinIO[(MinIO)]
-    WS -. planned .-> Kafka
-    WS -. planned .-> Valkey
+    PG["PostgreSQL"]
+    Redis["Redis"]
+    Cassandra["Cassandra"]
+    MinIO["MinIO"]
+    Elastic["Elasticsearch"]
 
-    classDef ready fill:#d9f2e6,stroke:#238b57,color:#102a1d;
-    classDef skeleton fill:#fff4d6,stroke:#b7791f,color:#3d2b0a;
-    classDef infra fill:#e8eef8,stroke:#4a67a1,color:#14213d;
-    class Gateway,Identity,Profile ready;
-    class Messages,Objects,WS skeleton;
-    class IdentityDB,ProfileDB,ObjectDB,Valkey,Kafka,Cassandra,MinIO infra;
-```
+    Clients --> LB --> Gateway
 
-Сплошные связи отражают уже подключенный MVP-срез. Пунктиром обозначены границы и инфраструктура для следующих итераций.
+    Gateway --> Identity
+    Gateway --> Profile
+    Gateway --> Messages
+    Gateway --> Objects
 
-## Стек
+    Clients --> WS
 
-- Python 3.14, FastAPI, Pydantic, Dishka, SQLAlchemy, Alembic;
-- PostgreSQL для транзакционных данных, Valkey для быстрого идемпотентного пути;
-- Kafka в KRaft-режиме и FastStream для событий;
-- NGINX как API Gateway;
-- Cassandra и MinIO в целевой локальной топологии сообщений и медиа;
-- Poetry, pytest, Ruff, ty, pip-audit, Docker и GitHub Actions.
+    Identity --> PG
+    Profile --> PG
+    Messages --> Cassandra
+    Objects --> MinIO
 
-## Как начать
+    Identity --> Redis
+    Profile --> Redis
+    WS --> Redis
 
-Нужны Git, Docker Compose, OpenSSL, Python 3.14 и Poetry 2.4+.
+    Identity --> Queue
+    Messages --> Queue
+    WS --> Queue
+
+    Queue --> Notifications
+    Queue --> Search
+
+    Search --> Elastic
+````
+
+> Диаграмма показывает логические границы системы. Каждый сервис может масштабироваться независимо в зависимости от характера нагрузки.
+
+---
+
+## Сервисы
+
+| Сервис                                                              | Назначение                                                                 | Статус      |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------- |
+| [API Gateway](services/api-gateway)                                  | Внешняя точка входа для HTTP API, маршрутизация и передача auth-контекста  | MVP     |
+| [Auth / Identity Service](services/identity-service)                 | Аутентификация, учётные данные, сессии и жизненный цикл токенов            | **Готов**       |
+| [User Profile Service](services/user-profile-service)                | Профили пользователей, настройки приватности и жизненный цикл профиля      | **Готов**       |
+| [Messages & Dialogues Service](services/messages-dialogues-service)  | Диалоги, хранение сообщений, статусы доставки и прочтения                  | В разработке     |
+| [WebSocket Gateway Service](services/websocket-gateway-service)      | Постоянные realtime-соединения и доставка событий подключённым клиентам    | В разработке     |
+| [Object Storage Gateway Service](services/object-storage-service)    | Загрузка и выдача медиа, метаданные объектов и presigned-доступ             | В разработке     |
+| Notifications Service                                                | Доставка push-уведомлений через FCM / APNs                                 | _В планах_ |
+| Search Service                                                       | Индексация и поиск по данным мессенджера                                   | _В планах_ |
+
+---
+
+## Архитектурные принципы
+
+### Горизонтальное масштабирование
+
+Прикладные сервисы проектируются **stateless** там, где это возможно, и могут запускаться в нескольких экземплярах за балансировщиками нагрузки.
+
+HTTP API, WebSocket-соединения, обработка медиа и фоновые процессы **масштабируются независимо** друг от друга.
+
+Состояние, которое препятствовало бы горизонтальному масштабированию, вынесено во внешние хранилища и инфраструктурные компоненты.
+
+### Изоляция отказов
+
+Границы сервисов ограничивают влияние отказа одного компонента на остальную систему.
+
+Синхронное взаимодействие используется там, где клиенту требуется немедленный результат. Независимые операции выносятся в асинхронные event-driven процессы.
+
+Для работы в условиях частичных отказов используются:
+- таймауты;
+- ограниченные retry;
+- exponential backoff;
+- Circuit Breaker;
+- идемпотентность;
+- надёжная доставка событий.
+
+### Согласованность данных
+
+Система не использует единую модель согласованности для всех типов данных.
+
+Транзакционные данные хранятся в PostgreSQL, а распределённые процессы используют асинхронную доставку событий и идемпотентную обработку.
+
+`Transactional Outbox` применяется там, где изменение состояния в БД и публикация события должны оставаться согласованными без использования распределённых транзакций.
+
+### Безопасность
+
+Аутентификация, учётные данные и управление сессиями изолированы внутри `Identity Service`.
+
+Внешние точки входа отделены от внутреннего межсервисного взаимодействия, а внутренние сервисы не должны быть напрямую доступны клиентам.
+
+Передача медиа строится через контролируемый object-storage flow и `presigned URL`, поэтому крупные файлы после авторизации могут передаваться без проксирования через прикладные сервисы.
+
+Чувствительные данные, связанные с аутентификацией и replay-защитой, обрабатываются отдельно от обычного прикладного состояния.
+
+### Хранилища под конкретную нагрузку
+
+Технологии хранения выбираются исходя из характера данных и access pattern, а не по принципу одной БД для всей системы:
+
+- **PostgreSQL** — транзакционные и строго согласованные данные;
+- **Cassandra** — большие объёмы распределённого хранения сообщений;
+- **Redis** — кеши, сессии и краткоживущее координационное состояние;
+- **Elasticsearch** — поисковые индексы;
+- **MinIO** — бинарные объекты и медиа.
+
+---
+
+## Структура репозитория
+
+```text
+andruha-messenger/
+│
+├── services/
+│   ├── api-gateway/
+│   ├── identity-service/
+│   ├── user-profile-service/
+│   ├── messages-dialogues-service/
+│   ├── websocket-gateway-service/
+│   └── object-storage-service/
+│
+├── contracts/
+├── docs/
+├── scripts/
+│
+├── .github/workflows/
+├── docker-compose.yml
+├── .env.example
+└── README.md
+````
+
+Каждый сервис развивается в отдельном репозитории и подключается к интеграционному репозиторию через Git submodules.
+
+Корневой репозиторий фиксирует совместимый набор версий сервисов и содержит общие межсервисные контракты, интеграционную инфраструктуру и документацию уровня системы.
+
+---
+
+## Быстрый запуск
+
+### Требования
+
+* Git
+* Docker + Docker Compose
+* Python 3.14
+* Poetry 2.4+
+* _OpenSSL (для генерации секретов для [Auth / Identity Service](services/identity-service))_
+
+### Клонирование
 
 ```powershell
 git clone --recurse-submodules https://github.com/yemeal/andruha-messenger.git
 Set-Location andruha-messenger
 Copy-Item .env.example .env
-docker compose config --quiet
-docker compose build
 ```
 
-Если репозиторий уже клонирован, синхронизируйте именно зафиксированные версии сервисов:
+Значения из .env.example предназначены исключительно для локальной разработки.
 
-```powershell
-git pull
-git submodule sync --recursive
-git submodule update --init --recursive
-```
 
-Корневой `docker-compose.yml` описывает локальную интеграционную топологию. Перед запуском Identity необходимо создать файлы из секций `secrets` и `configs` (`.secrets/identity/`) и задать сервисные секреты. Детальные переменные, миграции и команды запуска находятся в README соответствующего сервиса:
+>   Корневой .env содержит конфигурацию интеграционного окружения и используется
+    при запуске системы через корневой docker-compose.yml.
+    Команда выше не создаёт конфигурацию внутри Git submodules. Каждый сервис имеет
+    собственные переменные окружения, секреты и конфигурационные файлы. При запуске
+    сервиса отдельно от общей Docker Compose-топологии необходимо настроить его
+    окружение согласно README соответствующего сервиса.
+    
+
+### Генерация локальных секретов
 
 ```powershell
 New-Item -ItemType Directory -Force .secrets/identity
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
-openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
-openssl rand -out .secrets/identity/replay-v1.key 32
+
+openssl genpkey `
+  -algorithm RSA `
+  -pkeyopt rsa_keygen_bits:2048 `
+  -out .secrets/identity/jwt-private.pem
+
+openssl rsa `
+  -pubout `
+  -in .secrets/identity/jwt-private.pem `
+  -out .secrets/identity/jwt-public.pem
+
+openssl rand `
+  -out .secrets/identity/replay-v1.key `
+  32
+```
+
+### Запуск
+
+```powershell
+docker compose build
 docker compose up -d --wait
+```
+
+Проверка готовности:
+
+```powershell
 Invoke-WebRequest http://localhost:8080/health/ready
+```
+
+Остановка:
+
+```powershell
 docker compose down
 ```
 
-Значения из `.env.example` предназначены только для локальной разработки; в
-общем или production-окружении пароли и `PROFILE_PROVISIONING_TOKEN` необходимо
-заменить.
+---
 
-Детальные переменные и команды сервиса:
+## Документация
 
-- [Identity Service](services/identity-service/README.md)
-- [User Profile Service](services/user-profile-service/README.md)
+Архитектурная и инженерная документация уровня системы находится в [`docs/`](docs/).
 
-Локальная проверка отдельного Python-сервиса:
-
-```powershell
-Set-Location services/identity-service
-poetry sync --with dev --no-root
-poetry run pytest
-```
-
-Обновлять submodule на произвольный последний commit не следует: корневой commit фиксирует проверенную комбинацию версий.
-
-## Интересные решения
-
-- **Синхронная регистрация без распределенной транзакции.** Identity вызывает Profile через application port; адаптер защищен bounded retry и circuit breaker. Успешная регистрация означает, что профиль уже создан.
-- **Устойчивое восстановление.** Registration operation, lease/fencing и reconciler повторяют идемпотентный provisioning после таймаута, падения процесса или неоднозначного commit.
-- **Надежные события.** Пользователь и событие создаются в одной PostgreSQL-транзакции, затем outbox relay доставляет событие в Kafka с семантикой at-least-once.
-- **Идемпотентность и защита replay.** PostgreSQL хранит durable-результат, Valkey ускоряет повторные запросы, чувствительный replay шифруется AES-256-GCM.
-- **Гексагональная архитектура.** Домен и application layer не зависят от HTTP, Kafka, Redis или PostgreSQL; внешние системы подключаются адаптерами через порты.
+Инструкции по локальной разработке, конфигурации и запуску конкретных сервисов находятся в их собственных репозиториях.
