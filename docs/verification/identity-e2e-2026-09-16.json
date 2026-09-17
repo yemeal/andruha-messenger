@@ -1,0 +1,244 @@
+{
+  "date": "2026-09-18",
+  "scope": "Identity / Profile through Gateway, PostgreSQL, Valkey, Kafka",
+  "runs": [
+    {
+      "artifact": "results.json",
+      "scenarios": 39
+    }
+  ],
+  "cases": [
+    {
+      "name": "registration_login_profile",
+      "status": "PASS",
+      "seconds": 5.72
+    },
+    {
+      "name": "invalid_registration_has_no_effects",
+      "status": "PASS",
+      "seconds": 1.95
+    },
+    {
+      "name": "registration_replay_and_conflict",
+      "status": "PASS",
+      "seconds": 3.93
+    },
+    {
+      "name": "concurrent_registration_same_key",
+      "status": "PASS",
+      "seconds": 3.78
+    },
+    {
+      "name": "concurrent_registration_same_email",
+      "status": "PASS",
+      "seconds": 3.65
+    },
+    {
+      "name": "invalid_login_and_disabled_test_endpoint",
+      "status": "PASS",
+      "seconds": 1.99
+    },
+    {
+      "name": "jwt_validation_and_gateway_header_boundary",
+      "status": "PASS",
+      "seconds": 2.33
+    },
+    {
+      "name": "refresh_rotation_replay_and_reuse",
+      "status": "PASS",
+      "seconds": 6.5
+    },
+    {
+      "name": "concurrent_refresh_same_key",
+      "status": "PASS",
+      "seconds": 5.72
+    },
+    {
+      "name": "concurrent_refresh_different_keys",
+      "status": "PASS",
+      "seconds": 4.92
+    },
+    {
+      "name": "logout_idempotency_and_revocation",
+      "status": "PASS",
+      "seconds": 5.17
+    },
+    {
+      "name": "concurrent_logout_refresh",
+      "status": "PASS",
+      "seconds": 4.57
+    },
+    {
+      "name": "invalid_refresh_inputs",
+      "status": "PASS",
+      "seconds": 0.53
+    },
+    {
+      "name": "disabled_user_rejected",
+      "status": "PASS",
+      "seconds": 6.19
+    },
+    {
+      "name": "expired_session_rejected",
+      "status": "PASS",
+      "seconds": 5.41
+    },
+    {
+      "name": "profile_update_replay_and_version_conflict",
+      "status": "PASS",
+      "seconds": 0.67
+    },
+    {
+      "name": "gateway_settings_route",
+      "status": "PASS",
+      "seconds": 0.24
+    },
+    {
+      "name": "gateway_anonymous_public_profile",
+      "status": "PASS",
+      "seconds": 0.22
+    },
+    {
+      "name": "internal_provisioning_auth_and_replay",
+      "status": "PASS",
+      "seconds": 4.9
+    },
+    {
+      "name": "profile_process_outage_recovery",
+      "status": "PASS",
+      "seconds": 20.01
+    },
+    {
+      "name": "profile_database_outage_recovery",
+      "status": "PASS",
+      "seconds": 17.85
+    },
+    {
+      "name": "identity_database_outage_recovery",
+      "status": "PASS",
+      "seconds": 13.34
+    },
+    {
+      "name": "valkey_outage_durable_fallback",
+      "status": "PASS",
+      "seconds": 12.59
+    },
+    {
+      "name": "cache_loss_replays_durable_result",
+      "status": "PASS",
+      "seconds": 8.01
+    },
+    {
+      "name": "permanent_profile_auth_failure_redrive",
+      "status": "PASS",
+      "seconds": 9.36
+    },
+    {
+      "name": "identity_crash_after_profile_commit",
+      "status": "PASS",
+      "seconds": 18.58
+    },
+    {
+      "name": "lost_profile_response_recovery",
+      "status": "PASS",
+      "seconds": 15.68
+    },
+    {
+      "name": "kafka_outage_recovery",
+      "status": "PASS",
+      "seconds": 13.04
+    },
+    {
+      "name": "relay_crash_claim_recovery",
+      "status": "PASS",
+      "seconds": 10.73
+    },
+    {
+      "name": "service_restart_preserves_replay",
+      "status": "PASS",
+      "seconds": 11.39
+    },
+    {
+      "name": "global_consistency_and_kafka_delivery",
+      "status": "PASS",
+      "seconds": 8.96
+    },
+    {
+      "name": "credential_canaries_absent_from_logs",
+      "status": "PASS",
+      "seconds": 2.7
+    },
+    {
+      "name": "profile_settings_and_public_read_direct",
+      "status": "PASS",
+      "seconds": 0.91
+    },
+    {
+      "name": "two_reconcilers_drain_pending_registrations",
+      "status": "PASS",
+      "seconds": 49.62
+    },
+    {
+      "name": "reconciler_crash_after_profile_commit",
+      "status": "PASS",
+      "seconds": 28.66
+    },
+    {
+      "name": "replay_key_unavailable_then_restored",
+      "status": "PASS",
+      "seconds": 14.17
+    },
+    {
+      "name": "relay_crash_after_publish_before_commit",
+      "status": "PASS",
+      "seconds": 24.69
+    },
+    {
+      "name": "registration_retry_exhaustion_and_redrive",
+      "status": "PASS",
+      "seconds": 32.38
+    },
+    {
+      "name": "gateway_profile_search_route",
+      "status": "PASS",
+      "seconds": 0.92
+    }
+  ],
+  "totals": {
+    "passed": 39,
+    "failed": 0
+  },
+  "state": {
+    "users": 33,
+    "profiles": 33,
+    "settings": 33,
+    "completed_registrations": 33,
+    "outbox_success": 33,
+    "kafka_deliveries": 34,
+    "kafka_duplicate_deliveries": 1,
+    "auth_sessions": 12,
+    "replay_records": 17,
+    "unfinished_registrations": 0,
+    "unfinished_outbox": 0,
+    "orphan_users_profiles_settings": 0,
+    "live_claims": 0
+  },
+  "images": {
+    "identity": "sha256:87db9db4fd220641836da8c565f80269c1d9084f43a2ab88ed894b793d6d6e8c",
+    "profile": "sha256:67b5159ea668f8624cb8b4a894eb8b678d20da11f99c1e9e088d45a92a899c9a",
+    "gateway": "sha256:f82eed642cc6274d50a9fc9690d4eb05d9e6ebd1a5be19ecf292021d2a127452"
+  },
+  "checks": {
+    "unit": 371,
+    "integration": 110,
+    "ruff": "passed",
+    "format": "passed",
+    "ty": "passed"
+  },
+  "cleanup": {
+    "containers_removed": true,
+    "volumes_removed": true,
+    "temporary_trigger_removed": true,
+    "original_containers_preserved": true
+  }
+}
