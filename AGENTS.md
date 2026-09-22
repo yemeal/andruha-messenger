@@ -6,3 +6,4 @@
 - For environment setup or verification, read `docs/codex-environment.md` and use `scripts/codex-service.py` from the parent repository. When working directly inside a service, use its uv commands with that service as the working directory.
 - In an audit, report findings and an approval-ready plan before changing implementation. Directly requested implementation work may proceed within its authorized scope.
 - Distinguish unit tests, integration tests, and checks that were not run. Keep intentional failing TDD exercises when requested.
+- Read the target service's AGENTS.md before service work. When updating agent instructions, use docs/agent-guidelines/AGENTS.md as the shared source and docs/agent-guidelines/README.md for adaptation rules; service copies remain self-contained.
