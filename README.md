@@ -214,69 +214,121 @@ andruha-messenger/
 
 ### Требования
 
-* Git
-* Docker + Docker Compose
-* Python 3.14
-* uv
+* **Git** (с поддержкой субмодулей)
+* **Docker & Docker Compose** (версии Compose v2+)
+* **Python 3.14**
+* **uv**
 * _OpenSSL (для генерации секретов для [Auth / Identity Service](https://github.com/yemeal/andruha-identity-service))_
 
-### Клонирование
+---
 
-```powershell
+### 1. Клонирование и настройка окружения
+
+Клонируйте интеграционный репозиторий вместе со всеми субмодулями сервисов:
+
+```bash
 git clone --recurse-submodules https://github.com/yemeal/andruha-messenger.git
-Set-Location andruha-messenger
-Copy-Item .env.example .env
+cd andruha-messenger
+cp .env.example .env
 ```
 
-Значения из .env.example предназначены исключительно для локальной разработки.
+> [!NOTE]
+> Корневой файл `.env` содержит параметры для общей Docker Compose-топологии. Если репозиторий уже был клонирован без флага `--recurse-submodules`, выполните инициализацию субмодулей:  
+> `git submodule update --init --recursive`
 
+---
 
->   Корневой .env содержит конфигурацию интеграционного окружения и используется
-    при запуске системы через корневой docker-compose.yml.
-    Команда выше не создаёт конфигурацию внутри Git submodules. Каждый сервис имеет
-    собственные переменные окружения, секреты и конфигурационные файлы. При запуске
-    сервиса отдельно от общей Docker Compose-топологии необходимо настроить его
-    окружение согласно README соответствующего сервиса.
-    
+### 2. Генерация локальных секретов
 
-### Генерация локальных секретов
+Для запуска `Identity Service` (как в Docker, так и локально) требуются RSA-ключи для JWT и симметричный ключ для replay-кэша:
+
+```bash
+mkdir -p .secrets/identity
+
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
+openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
+openssl rand -out .secrets/identity/replay-v1.key 32
+```
+
+<details>
+<summary>Команды для PowerShell (Windows)</summary>
 
 ```powershell
 New-Item -ItemType Directory -Force .secrets/identity
-
-openssl genpkey `
-  -algorithm RSA `
-  -pkeyopt rsa_keygen_bits:2048 `
-  -out .secrets/identity/jwt-private.pem
-
-openssl rsa `
-  -pubout `
-  -in .secrets/identity/jwt-private.pem `
-  -out .secrets/identity/jwt-public.pem
-
-openssl rand `
-  -out .secrets/identity/replay-v1.key `
-  32
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
+openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
+openssl rand -out .secrets/identity/replay-v1.key 32
 ```
+</details>
 
-### Запуск
+---
 
-```powershell
-docker compose build
-docker compose up -d --wait
-```
+### 3. Рабочий процесс разработки
 
-Проверка готовности:
+В зависимости от задачи используются два основных режима работы:
 
-```powershell
-Invoke-WebRequest http://localhost:8080/health/ready
-```
+#### Вариант А: Разработка конкретного сервиса (Dev Workflow)
 
-Остановка:
+Основной сценарий при написании кода и отладке: тяжелая инфраструктура (БД, брокеры, кэш) запускается в Docker, а сам сервис — локально на хосте с hot-reload через `uv`:
 
-```powershell
-docker compose down
-```
+1. **Запустите необходимые инфраструктурные контейнеры:**
+   ```bash
+   # Например, для разработки Identity и User Profile:
+   docker compose up -d identity-postgres profile-postgres valkey kafka
+   ```
+
+2. **Перейдите в каталог сервиса и установите окружение:**
+   ```bash
+   cd services/identity-service   # или любой другой сервис
+   uv sync                        # создание .venv и синхронизация зависимостей
+   uv run prek install            # регистрация git-хуков качества (pre-commit и pre-push)
+   ```
+
+3. **Примените миграции базы данных (если применимо):**
+   ```bash
+   uv run alembic upgrade head
+   ```
+
+4. **Запустите сервис в режиме разработки:**
+   ```bash
+   uv run uvicorn --factory app.entrypoints.http.main:create_app --reload --port 8001
+   ```
+
+5. **Запуск тестов и линтеров:**
+   ```bash
+   uv run prek run --all-files    # запуск всех линтеров, форматтеров и проверок типов
+   uv run pytest tests/unit       # быстрые unit-тесты
+   ```
+
+> [!TIP]
+> Из корня репозитория для любого сервиса можно использовать единый хелпер:
+> ```bash
+> python scripts/codex-service.py identity-service check-tools
+> python scripts/codex-service.py identity-service lint
+> python scripts/codex-service.py identity-service unit
+> ```
+
+---
+
+#### Вариант Б: Полный запуск всей системы в Docker Compose (Integration)
+
+Используется для проверки сквозного взаимодействия всех микросервисов, e2e-тестов и проверки работы за единым API Gateway:
+
+1. **Сборка и запуск всех сервисов:**
+   ```bash
+   docker compose build
+   docker compose up -d --wait
+   ```
+
+2. **Проверка готовности кластера:**
+   ```bash
+   curl -f http://localhost:8080/health/ready
+   ```
+
+3. **Остановка:**
+   ```bash
+   docker compose down
+   ```
 
 ---
 
