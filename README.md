@@ -15,27 +15,27 @@ Backend мессенджера на микросервисной архитек�
 
 ### Технологический стек:
 
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi\&logoColor=white)
-![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic\&logoColor=white)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00)
-![Alembic](https://img.shields.io/badge/Alembic-6BA81E)
-![Dishka](https://img.shields.io/badge/DI-Dishka-blue)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white)](https://pydantic.dev/docs/validation/latest/get-started/)
+[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00)](https://docs.sqlalchemy.org/en/20/)
+[![Alembic](https://img.shields.io/badge/Alembic-6BA81E)](https://alembic.sqlalchemy.org/en/latest/)
+[![Dishka](https://img.shields.io/badge/DI-Dishka-blue)](https://dishka.readthedocs.io/en/stable/)
 
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql\&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-FF4438?logo=redis\&logoColor=white)
-![Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?logo=apachekafka\&logoColor=white)
-![Cassandra](https://img.shields.io/badge/Cassandra-1287B1?logo=apachecassandra\&logoColor=white)
-![MinIO](https://img.shields.io/badge/MinIO-C72E49?logo=minio\&logoColor=white)
-![Elasticsearch](https://img.shields.io/badge/Elasticsearch-005571?logo=elasticsearch\&logoColor=white)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/docs/)
+[![Redis](https://img.shields.io/badge/Redis-FF4438?logo=redis&logoColor=white)](https://redis.io/docs/latest/)
+[![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?logo=apachekafka&logoColor=white)](https://kafka.apache.org/documentation/)
+[![Cassandra](https://img.shields.io/badge/Cassandra-1287B1?logo=apachecassandra&logoColor=white)](https://cassandra.apache.org/doc/stable/)
+[![MinIO](https://img.shields.io/badge/MinIO-C72E49?logo=minio&logoColor=white)](https://min.io/docs/minio/linux/index.html)
+[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-005571?logo=elasticsearch&logoColor=white)](https://www.elastic.co/docs)
 
-![NGINX](https://img.shields.io/badge/NGINX-009639?logo=nginx\&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker\&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions\&logoColor=white)
-![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest\&logoColor=white)
-![Ruff](https://img.shields.io/badge/Ruff-D7FF64?logo=ruff\&logoColor=black)
-[![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
-[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-![prek](https://img.shields.io/badge/prek-0.5.3-blue?logo=rust\&logoColor=white)
+[![NGINX](https://img.shields.io/badge/NGINX-009639?logo=nginx&logoColor=white)](https://nginx.org/en/docs/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](https://docs.github.com/en/actions)
+[![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest&logoColor=white)](https://docs.pytest.org/en/stable/)
+[![Ruff](https://img.shields.io/badge/Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
+[![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://docs.astral.sh/ty/)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://docs.astral.sh/uv/)
+[![prek](https://img.shields.io/badge/prek-0.5.3-blue?logo=rust&logoColor=white)](https://prek.j178.dev/)
 
 </div>
 
@@ -51,7 +51,7 @@ Backend мессенджера на микросервисной архитек�
 
 Внешний трафик разделён между HTTP API, WebSocket-соединениями и загрузкой медиа. Это позволяет масштабировать realtime, API и object delivery независимо друг от друга.
 
-Корневой репозиторий выступает как integration repository и фиксирует совместимые версии сервисов через Git submodules.
+Корневой репозиторий выступает как integration repository и фиксирует совместимые версии сервисов через Git submodules. Фиксирует совместимый набор версий сервисов и содержит общие межсервисные контракты, интеграционную инфраструктуру и документацию уровня системы.
 
 ---
 
@@ -181,102 +181,117 @@ HTTP API, WebSocket-соединения, обработка медиа и фо�
 
 ---
 
-## Структура репозитория
-
-```text
-andruha-messenger/
-│
-├── services/
-│   ├── api-gateway/
-│   ├── identity-service/
-│   ├── user-profile-service/
-│   ├── messages-dialogues-service/
-│   ├── websocket-gateway-service/
-│   └── object-storage-service/
-│
-├── contracts/
-├── docs/
-├── scripts/
-│
-├── .github/workflows/
-├── docker-compose.yml
-├── .env.example
-└── README.md
-````
-
-Каждый сервис развивается в отдельном репозитории и подключается к интеграционному репозиторию через Git submodules.
-
-Корневой репозиторий фиксирует совместимый набор версий сервисов и содержит общие межсервисные контракты, интеграционную инфраструктуру и документацию уровня системы.
-
----
-
 ## Быстрый запуск
 
 ### Требования
 
-* Git
-* Docker + Docker Compose
-* Python 3.14
-* uv
+* **Git** (с поддержкой субмодулей)
+* **Docker & Docker Compose** (версии Compose v2+)
+* **Python 3.14**
+* **uv**
 * _OpenSSL (для генерации секретов для [Auth / Identity Service](https://github.com/yemeal/andruha-identity-service))_
 
-### Клонирование
+---
 
-```powershell
+### 1. Клонирование и настройка окружения
+
+Клонируйте интеграционный репозиторий вместе со всеми субмодулями сервисов:
+
+```bash
 git clone --recurse-submodules https://github.com/yemeal/andruha-messenger.git
-Set-Location andruha-messenger
-Copy-Item .env.example .env
+cd andruha-messenger
+cp .env.example .env
 ```
 
-Значения из .env.example предназначены исключительно для локальной разработки.
+> [!NOTE]
+> Корневой файл `.env` содержит параметры для общей Docker Compose-топологии. Если репозиторий уже был клонирован без флага `--recurse-submodules`, выполните инициализацию субмодулей:  
+> `git submodule update --init --recursive`
 
+---
 
->   Корневой .env содержит конфигурацию интеграционного окружения и используется
-    при запуске системы через корневой docker-compose.yml.
-    Команда выше не создаёт конфигурацию внутри Git submodules. Каждый сервис имеет
-    собственные переменные окружения, секреты и конфигурационные файлы. При запуске
-    сервиса отдельно от общей Docker Compose-топологии необходимо настроить его
-    окружение согласно README соответствующего сервиса.
-    
+### 2. Генерация локальных секретов
 
-### Генерация локальных секретов
+Для запуска `Identity Service` (как в Docker, так и локально) требуются RSA-ключи для JWT и симметричный ключ для replay-кэша:
+
+```bash
+mkdir -p .secrets/identity
+
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
+openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
+openssl rand -out .secrets/identity/replay-v1.key 32
+```
+
+<details>
+<summary>Команды для PowerShell (Windows)</summary>
 
 ```powershell
 New-Item -ItemType Directory -Force .secrets/identity
-
-openssl genpkey `
-  -algorithm RSA `
-  -pkeyopt rsa_keygen_bits:2048 `
-  -out .secrets/identity/jwt-private.pem
-
-openssl rsa `
-  -pubout `
-  -in .secrets/identity/jwt-private.pem `
-  -out .secrets/identity/jwt-public.pem
-
-openssl rand `
-  -out .secrets/identity/replay-v1.key `
-  32
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
+openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
+openssl rand -out .secrets/identity/replay-v1.key 32
 ```
+</details>
 
-### Запуск
+---
 
-```powershell
-docker compose build
-docker compose up -d --wait
-```
+### 3. Рабочий процесс разработки
 
-Проверка готовности:
+В зависимости от задачи используются два основных режима работы:
 
-```powershell
-Invoke-WebRequest http://localhost:8080/health/ready
-```
+#### Вариант А: Разработка конкретного сервиса (Dev Workflow)
 
-Остановка:
+Основной сценарий при написании кода и отладке: тяжелая инфраструктура (БД, брокеры, кэш) запускается в Docker, а сам сервис — локально на хосте с hot-reload через `uv`:
 
-```powershell
-docker compose down
-```
+1. **Запустите необходимые инфраструктурные контейнеры:**
+   ```bash
+   # Например, для разработки Identity и User Profile:
+   docker compose up -d identity-postgres profile-postgres valkey kafka
+   ```
+
+2. **Перейдите в каталог сервиса и установите окружение:**
+   ```bash
+   cd services/service-name   
+   uv sync                        # создание .venv и синхронизация зависимостей
+   uv run prek install            # регистрация git-хуков качества (pre-commit и pre-push)
+   ```
+
+3. **Примените миграции базы данных (если применимо):**
+   ```bash
+   uv run alembic upgrade head
+   ```
+
+4. **Запустите сервис в режиме разработки:**
+   ```bash
+   uv run uvicorn --factory ... --reload --port 8001
+   ```
+
+5. **Запуск тестов и линтеров:**
+   ```bash
+   uv run prek run --all-files    # запуск всех линтеров, форматтеров и проверок типов
+   uv run pytest tests/unit       # быстрые unit-тесты
+   ```
+   
+---
+
+#### Вариант Б: Полный запуск всей системы в Docker Compose (Integration)
+
+Используется для проверки сквозного взаимодействия всех микросервисов, e2e-тестов и проверки работы за единым API Gateway:
+
+1. **Сборка и запуск всех сервисов:**
+   ```bash
+   docker compose build
+   docker compose up -d --wait
+   ```
+
+2. **Проверка готовности кластера:**
+   ```bash
+   curl -f http://localhost:8080/health/ready
+   ```
+
+3. **Остановка:**
+   ```bash
+   docker compose down
+   ```
 
 ---
 
