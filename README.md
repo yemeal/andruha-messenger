@@ -34,6 +34,8 @@ Backend мессенджера на микросервисной архитек�
 ![pytest](https://img.shields.io/badge/pytest-0A9EDC?logo=pytest\&logoColor=white)
 ![Ruff](https://img.shields.io/badge/Ruff-D7FF64?logo=ruff\&logoColor=black)
 [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+![prek](https://img.shields.io/badge/prek-0.5.3-blue?logo=rust\&logoColor=white)
 
 </div>
 
@@ -114,12 +116,12 @@ flowchart LR
 
 | Сервис                                                              | Назначение                                                                 | Статус      |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------- |
-| [API Gateway](services/api-gateway)                                  | Внешняя точка входа для HTTP API, маршрутизация и передача auth-контекста  | MVP     |
-| [Auth / Identity Service](services/identity-service)                 | Аутентификация, учётные данные, сессии и жизненный цикл токенов            | **Готов**       |
-| [User Profile Service](services/user-profile-service)                | Профили пользователей, настройки приватности и жизненный цикл профиля      | **Готов**       |
-| [Messages & Dialogues Service](services/messages-dialogues-service)  | Диалоги, хранение сообщений, статусы доставки и прочтения                  | В разработке     |
-| [WebSocket Gateway Service](services/websocket-gateway-service)      | Постоянные realtime-соединения и доставка событий подключённым клиентам    | В разработке     |
-| [Object Storage Gateway Service](services/object-storage-service)    | Загрузка и выдача медиа, метаданные объектов и presigned-доступ             | В разработке     |
+| [API Gateway](https://github.com/yemeal/andruha-api-gateway)                                  | Внешняя точка входа для HTTP API, маршрутизация и передача auth-контекста  | MVP     |
+| [Auth / Identity Service](https://github.com/yemeal/andruha-identity-service)                 | Аутентификация, учётные данные, сессии и жизненный цикл токенов            | **Готов**       |
+| [User Profile Service](https://github.com/yemeal/andruha-user-profile-service)                | Профили пользователей, настройки приватности и жизненный цикл профиля      | **Готов**       |
+| [Messages & Dialogues Service](https://github.com/yemeal/andruha-messages-dialogues-service)  | Диалоги, хранение сообщений, статусы доставки и прочтения                  | В разработке     |
+| [WebSocket Gateway Service](https://github.com/yemeal/andruha-websocket-gateway-service)      | Постоянные realtime-соединения и доставка событий подключённым клиентам    | В разработке     |
+| [Object Storage Gateway Service](https://github.com/yemeal/andruha-object-storage-service)    | Загрузка и выдача медиа, метаданные объектов и presigned-доступ             | В разработке     |
 | Notifications Service                                                | Доставка push-уведомлений через FCM / APNs                                 | _В планах_ |
 | Search Service                                                       | Индексация и поиск по данным мессенджера                                   | _В планах_ |
 
@@ -215,8 +217,8 @@ andruha-messenger/
 * Git
 * Docker + Docker Compose
 * Python 3.14
-* Poetry 2.4+
-* _OpenSSL (для генерации секретов для [Auth / Identity Service](services/identity-service))_
+* uv
+* _OpenSSL (для генерации секретов для [Auth / Identity Service](https://github.com/yemeal/andruha-identity-service))_
 
 ### Клонирование
 
