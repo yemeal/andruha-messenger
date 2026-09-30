@@ -1,5 +1,7 @@
 # Andruha workspace
 
+- Commit, push, and create or publish a pull request (including a draft) only after the user explicitly asks for that specific action. Never do these actions autonomously.
+- An implementation request, "finish", general approval, successful checks, or repository delivery conventions do not authorize a commit, push, or PR. A request to commit does not authorize pushing or creating a PR. Until explicitly requested, finish with verified, uncommitted local changes and a report.
 - Before modifying a service, inspect its Git status and any instructions inside that service. Services are independent Git repositories/submodules; preserve existing changes in both the parent and service repositories.
 - Keep changes within the requested service and its public contracts. Cross-service changes require an explicit task scope.
 - Domain behavior belongs in domain/application code; keep transport and persistence details in adapters. Verify actual implementation before claiming architectural guarantees.
