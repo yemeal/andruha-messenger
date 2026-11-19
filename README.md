@@ -219,6 +219,8 @@ mkdir -p .secrets/identity
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
 openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
 openssl rand -out .secrets/identity/replay-v1.key 32
+mkdir -p .secrets/messages
+openssl rand -out .secrets/messages/cursor.key 32
 ```
 
 <details>
@@ -229,8 +231,16 @@ New-Item -ItemType Directory -Force .secrets/identity
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out .secrets/identity/jwt-private.pem
 openssl rsa -pubout -in .secrets/identity/jwt-private.pem -out .secrets/identity/jwt-public.pem
 openssl rand -out .secrets/identity/replay-v1.key 32
+New-Item -ItemType Directory -Force .secrets/messages
+openssl rand -out .secrets/messages/cursor.key 32
 ```
 </details>
+
+Messages использует отдельный постоянный ключ для подписанных history/sync
+курсоров. Существующие ключи при повторном запуске сохраняют. Compose создаёт
+keyspace `messages`, применяет versioned migrations отдельной задачей
+`messages-migrate` и запускает бизнес-роль Messages с JWT key ring Identity.
+Контракт текстовой переписки: [Messages HTTP v1](docs/contracts/messages-http-v1.md).
 
 ---
 

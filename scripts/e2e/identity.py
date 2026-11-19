@@ -22,6 +22,7 @@ class Suite:
         if not self.manifest["project"].startswith("andruha-e2e-"):
             raise ValueError("Only an isolated E2E project can be tested")
         self.compose = ["docker", "compose", "-f", str(directory / "compose.json")]
+        self.config = json.loads((directory / "compose.json").read_text())
         self.urls = {
             name: "http://" + self.dc("port", name, str(port)).strip()
             for name, port in {
@@ -34,6 +35,12 @@ class Suite:
         self.results = []
         self.responses = []
         self.secrets = {self.manifest["service_token"]}
+        if "identity_internal_token" in self.manifest:
+            self.secrets.add(self.manifest["identity_internal_token"])
+        self.secrets.update(
+            self.config["services"][name]["environment"]["POSTGRES_PASSWORD"]
+            for name in ("identity-postgres", "profile-postgres")
+        )
         self.password = "E2E-password-canary-" + uuid.uuid4().hex
         self.secrets.add(self.password)
         self.prefix = uuid.uuid4().hex[:10]
@@ -56,9 +63,8 @@ class Suite:
         return process.stdout + process.stderr if args[0] == "logs" else process.stdout
 
     def sql(self, service, query):
-        user = (
-            "andruha_identity" if service == "identity-postgres" else "andruha_profile"
-        )
+        environment = self.config["services"][service]["environment"]
+        user = environment["POSTGRES_USER"]
         output = self.dc(
             "exec",
             "-T",
@@ -71,7 +77,7 @@ class Suite:
             "-U",
             user,
             "-d",
-            user,
+            environment["POSTGRES_DB"],
             input=query,
         )
         return output.strip()
@@ -252,10 +258,19 @@ class Suite:
 
         def ready():
             try:
-                return (
+                if (
                     self.request("GET", "/health/ready", service=service).status_code
-                    == 200
+                    != 200
+                ):
+                    return False
+                path = (
+                    "/api/v1/auth/me"
+                    if service == "identity-service"
+                    else "/api/v1/profiles/me"
                 )
+                # Probe transport recovery without executing a mutation during
+                # Docker DNS convergence. Anonymous access must reach upstream.
+                return self.request("GET", path).status_code == 401
             except httpx.TransportError:
                 return False
 
@@ -598,6 +613,53 @@ class Suite:
         )
         self.check_user(self.main_user)
 
+    def internal_accounts_lookup(self):
+        body = {"userIds": [self.main_user, str(uuid.uuid4())]}
+        headers = {"X-Service-Token": self.manifest["identity_internal_token"]}
+        self.status(
+            self.request(
+                "POST", "/internal/v1/accounts/lookup", json=body, headers=headers
+            ),
+            404,
+        )
+        result = self.status(
+            self.request(
+                "POST",
+                "/internal/v1/accounts/lookup",
+                service="identity-service",
+                json=body,
+                headers=headers,
+            ),
+            200,
+        )
+        assert result.json() == {"registeredUserIds": [self.main_user]}
+        self.status(
+            self.request(
+                "POST",
+                "/internal/v1/accounts/lookup",
+                service="identity-service",
+                json=body,
+                headers={"X-Service-Token": "incorrect-credential"},
+            ),
+            401,
+        )
+        _email, profile_blocked = self.new_user("profile-blocked-lookup")
+        self.sql(
+            "profile-postgres",
+            f"UPDATE profiles SET status='BLOCKED' WHERE user_id='{profile_blocked}';",
+        )
+        eligible = self.status(
+            self.request(
+                "POST",
+                "/internal/v1/accounts/lookup",
+                service="identity-service",
+                json={"userIds": [profile_blocked]},
+                headers=headers,
+            ),
+            200,
+        )
+        assert eligible.json() == {"registeredUserIds": [profile_blocked]}
+
     def outage_registration(self, dependency, label):
         email, key = self.email(label), self.key()
         with (
@@ -650,6 +712,31 @@ class Suite:
         self.wait_ready("identity-service")
         self.status(self.register(email, key), 201, 202)
         self.complete(email, key)
+
+    def profile_readiness_recovery(self):
+        _email, user = self.new_user("profile-readiness")
+        self.wait_ready("user-profile-service")
+        with self.stopped("profile-postgres"):
+            self.status(
+                self.request("GET", "/health/live", service="user-profile-service"), 200
+            )
+            self.status(
+                self.request("GET", "/health/ready", service="user-profile-service"),
+                503,
+            )
+            self.status(
+                self.request(
+                    "GET", f"/api/v1/profiles/{user}", service="user-profile-service"
+                ),
+                503,
+            )
+        self.wait_ready("user-profile-service")
+        self.status(
+            self.request(
+                "GET", f"/api/v1/profiles/{user}", service="user-profile-service"
+            ),
+            200,
+        )
 
     def valkey_outage(self):
         email, user = self.new_user("valkey")
@@ -762,6 +849,19 @@ class Suite:
                     )
                     == "1"
                 )
+                eligibility = self.status(
+                    self.request(
+                        "POST",
+                        "/internal/v1/accounts/lookup",
+                        service="identity-service",
+                        headers={
+                            "X-Service-Token": self.manifest["identity_internal_token"]
+                        },
+                        json={"userIds": [operation["user_id"]]},
+                    ),
+                    200,
+                )
+                assert eligibility.json() == {"registeredUserIds": []}
             finally:
                 self.proxy("forward")
         self.complete(email, key)
@@ -825,6 +925,80 @@ class Suite:
             "relay claim recovered",
             timeout=90,
         )
+
+    def relay_automatic_recovery(self):
+        """SIGKILL the worker under init; never manually start the relay."""
+        container = self.dc("ps", "-q", "identity-relay").strip()
+
+        def restarts():
+            return int(
+                subprocess.check_output(
+                    ["docker", "inspect", "--format", "{{.RestartCount}}", container],
+                    text=True,
+                )
+            )
+
+        def health(mode):
+            return (
+                subprocess.run(
+                    self.compose
+                    + [
+                        "exec",
+                        "-T",
+                        "identity-relay",
+                        "python",
+                        "-m",
+                        "app.entrypoints.messaging.health",
+                        mode,
+                    ],
+                    capture_output=True,
+                    timeout=10,
+                ).returncode
+                == 0
+            )
+
+        before = restarts()
+        with self.stopped("kafka"):
+            _email, user = self.new_user("relay-auto")
+            self.eventually(
+                lambda: (
+                    self.sql(
+                        "identity-postgres",
+                        f"SELECT status FROM outbox WHERE key='{user}';",
+                    )
+                    == "CLAIMED"
+                ),
+                "claim before automatic relay recovery",
+            )
+            self.dc(
+                "exec",
+                "-T",
+                "identity-relay",
+                "python",
+                "-c",
+                "import json, os, signal; "
+                "from app.core.settings import get_settings; "
+                "state = json.loads(get_settings().outbox.OUTBOX_HEALTH_STATE_PATH.read_text()); "
+                "assert state['pid'] > 1; os.kill(state['pid'], signal.SIGKILL)",
+                check=False,
+            )
+            self.eventually(
+                lambda: restarts() > before, "relay restarted automatically"
+            )
+            self.eventually(lambda: health("--live"), "relay lives during bootstrap")
+            assert not health("--ready"), "Relay must not be ready without Kafka"
+        self.eventually(
+            lambda: (
+                self.sql(
+                    "identity-postgres",
+                    f"SELECT status FROM outbox WHERE key='{user}';",
+                )
+                == "SUCCESS"
+            ),
+            "automatic relay recovery drains expired claim",
+            timeout=120,
+        )
+        self.eventually(lambda: health("--ready"), "relay dependencies recovered")
 
     def restart_replay(self):
         email, user = self.new_user("restart")
@@ -1288,6 +1462,10 @@ asyncio.run(main())
             ("gateway_profile_search_route", self.gateway_profile_search),
             ("internal_provisioning_auth_and_replay", self.internal_boundary),
             (
+                "internal_account_lookup_and_gateway_isolation",
+                self.internal_accounts_lookup,
+            ),
+            (
                 "profile_process_outage_recovery",
                 lambda: self.outage_registration(
                     "user-profile-service", "profile-down"
@@ -1298,6 +1476,10 @@ asyncio.run(main())
                 lambda: self.outage_registration("profile-postgres", "profile-db-down"),
             ),
             ("identity_database_outage_recovery", self.identity_database_outage),
+            (
+                "profile_dependency_readiness_recovers_without_restart",
+                self.profile_readiness_recovery,
+            ),
             ("valkey_outage_durable_fallback", self.valkey_outage),
             ("cache_loss_replays_durable_result", self.cache_loss),
             ("permanent_profile_auth_failure_redrive", self.blocked_redrive),
@@ -1305,6 +1487,10 @@ asyncio.run(main())
             ("lost_profile_response_recovery", self.lost_profile_response),
             ("kafka_outage_recovery", self.kafka_outage),
             ("relay_crash_claim_recovery", self.relay_crash),
+            (
+                "relay_automatic_bootstrap_and_claim_recovery",
+                self.relay_automatic_recovery,
+            ),
             ("service_restart_preserves_replay", self.restart_replay),
             ("profile_settings_and_public_read_direct", self.profile_settings_direct),
             ("two_reconcilers_drain_pending_registrations", self.multiple_reconcilers),
