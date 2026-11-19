@@ -13,6 +13,8 @@ CONTRACTS_ROOT = Path(__file__).resolve().parents[1]
 CAMEL_CASE = re.compile(r"^[a-z][A-Za-z0-9]*$")
 
 EXAMPLE_SCHEMAS = {
+    "identity/accounts-lookup-request.v1": "identity/http/accounts-lookup-request.v1.schema.json",
+    "identity/accounts-lookup-response.v1": "identity/http/accounts-lookup-response.v1.schema.json",
     "identity/user-registered.v1": "identity/events/user-registered.v1.schema.json",
     "messaging/message-send.v1": "messaging/commands/message-send.v1.schema.json",
     "messaging/receipt-advance.v1": "messaging/commands/receipt-advance.v1.schema.json",

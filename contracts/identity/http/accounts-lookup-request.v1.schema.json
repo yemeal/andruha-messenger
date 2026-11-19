@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:andruha:contracts:identity:accounts-lookup-request:v1",
+  "title": "identity.accounts_lookup.request.v1",
+  "type": "object",
+  "required": ["userIds"],
+  "properties": {
+    "userIds": {
+      "type": "array", "minItems": 1, "maxItems": 100,
+      "items": {"type": "string", "format": "uuid"}
+    }
+  },
+  "additionalProperties": false
+}
