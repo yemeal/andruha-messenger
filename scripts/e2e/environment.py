@@ -3,6 +3,7 @@
 import argparse
 import base64
 import json
+import os
 import secrets
 import subprocess
 import tempfile
@@ -27,9 +28,16 @@ SERVICES = (
 )
 
 
-def prepare():
+def prepare(*, custom_identity_credentials=False):
     directory = Path(tempfile.mkdtemp(prefix="andruha-identity-e2e-"))
     project = "andruha-e2e-" + uuid.uuid4().hex[:10]
+    environment = os.environ.copy()
+    if custom_identity_credentials:
+        environment.update(
+            IDENTITY_POSTGRES_USER="identity_e2e_" + secrets.token_hex(4),
+            IDENTITY_POSTGRES_DB="identity_e2e_" + secrets.token_hex(4),
+            IDENTITY_POSTGRES_PASSWORD=secrets.token_hex(24),
+        )
     source = json.loads(
         subprocess.check_output(
             [
@@ -44,6 +52,7 @@ def prepare():
             cwd=ROOT,
             text=True,
             encoding="utf-8",
+            env=environment,
         )
     )
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -65,6 +74,7 @@ def prepare():
     )
     config = {"name": project, "services": {}, "volumes": {}}
     token = secrets.token_hex(24)
+    identity_internal_token = secrets.token_hex(24)
     for name in SERVICES:
         service = source["services"][name]
         for field in ("networks", "depends_on", "secrets", "configs", "build", "ports"):
@@ -82,11 +92,8 @@ def prepare():
             env.update(
                 {
                     "DEV_LOGS": "false",
+                    "IDENTITY_INTERNAL_API_TOKEN": identity_internal_token,
                     "RUN_MIGRATIONS": "false",
-                    "DATABASE_HOST": "identity-postgres",
-                    "DATABASE_USER": "andruha_identity",
-                    "DATABASE_PASSWORD": "identity-e2e-only",
-                    "DATABASE_NAME": "andruha_identity",
                     "PROFILE_SERVICE_URL": "http://profile-proxy:8010",
                     "PROFILE_SERVICE_TOKEN": token,
                     "PROFILE_SERVICE_TIMEOUT_SECONDS": "3",
@@ -105,7 +112,6 @@ def prepare():
                     "OUTBOX_RETRY_MAX_SECONDS": "2",
                     "AUTH_COOKIE_SECURE": "false",
                     "JWT_CLOCK_SKEW_SECONDS": "0",
-                    "KAFKA_USER_REGISTERED_TOPIC": "identity.events.v1",
                 }
             )
             service["volumes"] = [
@@ -113,12 +119,6 @@ def prepare():
                 f"{(directory / 'public.pem').as_posix()}:/run/configs/identity_jwt_public_key:ro",
                 f"{(directory / 'replay.key').as_posix()}:/run/secrets/identity_replay_key:ro",
             ]
-        if name == "identity-postgres":
-            env.update(
-                POSTGRES_USER="andruha_identity",
-                POSTGRES_DB="andruha_identity",
-                POSTGRES_PASSWORD="identity-e2e-only",
-            )
         if name == "profile-postgres":
             env.update(
                 POSTGRES_USER="andruha_profile",
@@ -172,7 +172,13 @@ def prepare():
         json.dumps(config, indent=2), encoding="utf-8"
     )
     (directory / "manifest.json").write_text(
-        json.dumps({"project": project, "service_token": token})
+        json.dumps(
+            {
+                "project": project,
+                "service_token": token,
+                "identity_internal_token": identity_internal_token,
+            }
+        )
     )
     return directory
 

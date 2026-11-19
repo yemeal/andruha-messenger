@@ -1,0 +1,609 @@
+{
+  "date": "2026-11-15",
+  "timezone": "Asia/Novosibirsk",
+  "workspace": "C:/Projects/Andruha",
+  "scope": [
+    "identity-service",
+    "user-profile-service",
+    "messages-dialogues-service"
+  ],
+  "mode": "read-only code audit; new report/backlog/evidence only",
+  "excluded_requirements": [
+    "College DOCX reports LR5/LR6 and ERD images: explicitly fictional and unrelated to product"
+  ],
+  "repositories": {
+    "C:\\Projects\\Andruha": {
+      "head": "f4b5e2e9866d3b7152733ad240e6520d693f598a",
+      "baseline_file_count": 142,
+      "initial_status": " M AGENTS.md\n M docs/agent-guidelines/AGENTS.md\n M docs/agent-guidelines/README.md\n M frontend/index.html\n M frontend/src/api.ts\n M frontend/src/pages/Auth.vue\n M frontend/src/pages/Landing.vue\n M frontend/src/pages/Messenger.vue\n M frontend/src/styles.css\n M services/api-gateway\n M services/identity-service\n M services/messages-dialogues-service\n M services/object-storage-service\n M services/user-profile-service\n M services/websocket-gateway-service\n?? design/\n?? docs/diagram_conceptual_erd.png\n?? docs/diagram_logical_erd.png\n?? docs/product-development-plan-2026-09-18.md\n?? \"docs/\\320\\236\\320\\242\\320\\247\\320\\225\\320\\242_\\320\\243\\320\\237_\\320\\237\\320\\234.02_\\320\\225\\320\\274\\320\\265\\320\\273\\321\\214\\321\\217\\320\\275\\320\\276\\320\\262_\\320\\233\\320\\2405.docx\"\n?? \"docs/\\320\\236\\320\\242\\320\\247\\320\\225\\320\\242_\\320\\243\\320\\237_\\320\\237\\320\\234.02_\\320\\225\\320\\274\\320\\265\\320\\273\\321\\214\\321\\217\\320\\275\\320\\276\\320\\262_\\320\\233\\320\\2406.docx\"\n?? frontend/public/fox-detective.png\n?? frontend/public/fox-front-open.png\n?? frontend/public/fox-walk-1.png\n?? frontend/public/fox-walk-2.png\n?? frontend/public/fox-walk-3.png\n?? frontend/public/fox-walk-4.png\n?? frontend/public/meme-reaction.png\n?? frontend/public/meme-think.png\n?? frontend/public/meme-yurt.png\n?? frontend/public/snack-apple.png\n?? frontend/public/snack-beetle-1.png\n?? frontend/public/snack-beetle-2.png\n?? frontend/public/snack-beetle-3.png\n?? frontend/public/snack-berries.png\n?? frontend/public/snack-egg.png\n?? frontend/src/components/\n"
+    },
+    "C:\\Projects\\Andruha\\services\\identity-service": {
+      "head": "30ec116e87def5f711a5df1b4632802afedc18c9",
+      "baseline_file_count": 260,
+      "initial_status": ""
+    },
+    "C:\\Projects\\Andruha\\services\\user-profile-service": {
+      "head": "cbabe926faf447d55109dccc1f42531c61f07194",
+      "baseline_file_count": 258,
+      "initial_status": ""
+    },
+    "C:\\Projects\\Andruha\\services\\messages-dialogues-service": {
+      "head": "69314c30e4919534c7a56d709d3d5bd50f2a947e",
+      "baseline_file_count": 249,
+      "initial_status": ""
+    }
+  },
+  "suites": {
+    "identity": {
+      "unit": {
+        "passed": 371,
+        "failed": 0
+      },
+      "integration": {
+        "passed": 110,
+        "failed": 0,
+        "real_dependencies": [
+          "PostgreSQL18 Testcontainers",
+          "Valkey8.1 Testcontainers",
+          "HTTP Profile peer"
+        ],
+        "kafka_publisher": "RecordingBrokerPublisher, not real Kafka"
+      }
+    },
+    "user_profile": {
+      "unit": {
+        "passed": 490,
+        "failed": 0
+      },
+      "integration": {
+        "passed": 161,
+        "failed": 0,
+        "skipped": 0,
+        "real_dependencies": [
+          "PostgreSQL17.10 disposable container",
+          "Valkey8.1.9 disposable container"
+        ]
+      }
+    },
+    "messages": {
+      "unit": {
+        "passed": 463,
+        "failed": 8,
+        "failed_files": [
+          "tests/unit/application/dialogues/test_send_direct_message.py",
+          "tests/unit/application/dialogues/test_send_saved_message.py"
+        ],
+        "cause": "fixed handler clock 2026-10-19 with actual-time dialog factories violates created-before-dialog invariant"
+      },
+      "integration": {
+        "passed": 8,
+        "failed": 0,
+        "scope": "HTTP operational bootstrap only"
+      }
+    }
+  },
+  "contracts": {
+    "command": "rtk proxy uv run --no-project --with-requirements contracts/requirements-dev.txt python -m unittest discover -s contracts/tests -v",
+    "passed": 4,
+    "failed": 0,
+    "initial_attempt": {
+      "command": "rtk proxy python -m unittest discover -s contracts/tests -v",
+      "exit_code": 1,
+      "cause": "system Python lacks jsonschema"
+    },
+    "factory_validation": {
+      "persisted": {
+        "errors": [
+          {
+            "path": [
+              "causationId"
+            ],
+            "message": "None is not of type 'string'"
+          }
+        ],
+        "errors_after_omitting_null_causation": []
+      },
+      "persisted_replay": {
+        "errors": [
+          {
+            "path": [
+              "causationId"
+            ],
+            "message": "None is not of type 'string'"
+          }
+        ],
+        "errors_after_omitting_null_causation": []
+      },
+      "receipt": {
+        "errors": [
+          {
+            "path": [
+              "causationId"
+            ],
+            "message": "None is not of type 'string'"
+          }
+        ],
+        "errors_after_omitting_null_causation": []
+      }
+    }
+  },
+  "quality_checks": {
+    "ruff_lint": "PASS all three services",
+    "python_scoped_format": "PASS all three services",
+    "ty": "PASS all three services",
+    "uv_lock_check": "PASS all three services",
+    "broad_markdown_format": {
+      "user_profile": "FAIL 4 markdown Python fences CRLF; outside Python hook scope",
+      "messages": "FAIL 5 markdown Python fences CRLF; outside Python hook scope"
+    },
+    "compose_config_quiet": "PASS",
+    "full_prek": "NOT RUN due to mutating hooks",
+    "coverage_gate": "NOT RUN",
+    "remote_ci": "NOT VERIFIED",
+    "history_secret_scan": "NOT RUN"
+  },
+  "runtime_dependency_audit": {
+    "identity": {
+      "exit_code": 1,
+      "package": "dnspython",
+      "version": "2.8.0",
+      "advisories": [
+        {
+          "cve": "CVE-2026-114605",
+          "ghsa": "GHSA-45c3-73f7-pv4m",
+          "fixed_version": "2.9.0",
+          "source": "https://github.com/rthalley/dnspython/security/advisories/GHSA-45c3-73f7-pv4m"
+        },
+        {
+          "cve": "CVE-2026-128089",
+          "ghsa": "GHSA-vvf4-9x63-8xvv",
+          "fixed_version": "2.9.2",
+          "source": "https://github.com/rthalley/dnspython/security/advisories/GHSA-vvf4-9x63-8xvv"
+        }
+      ],
+      "reachability": "Not established; Pydantic EmailStr disables DNS deliverability checks"
+    },
+    "user_profile": {
+      "exit_code": 0,
+      "result": "No known vulnerabilities found"
+    },
+    "messages": {
+      "exit_code": 0,
+      "runtime_packages": 16,
+      "result": "No known vulnerabilities found"
+    }
+  },
+  "e2e": {
+    "command": "rtk proxy uv run python ../../scripts/e2e/run.py",
+    "cwd": "C:/Projects/Andruha/services/identity-service",
+    "artifacts": "C:/Users/Alex/AppData/Local/Temp/andruha-identity-e2e-gma4gqh6",
+    "exit_code": 1,
+    "passed": 38,
+    "failed": 1,
+    "cases": [
+      {
+        "name": "registration_login_profile",
+        "status": "PASS",
+        "seconds": 2.68
+      },
+      {
+        "name": "invalid_registration_has_no_effects",
+        "status": "PASS",
+        "seconds": 1.11
+      },
+      {
+        "name": "registration_replay_and_conflict",
+        "status": "PASS",
+        "seconds": 2.16
+      },
+      {
+        "name": "concurrent_registration_same_key",
+        "status": "PASS",
+        "seconds": 2.09
+      },
+      {
+        "name": "concurrent_registration_same_email",
+        "status": "PASS",
+        "seconds": 1.98
+      },
+      {
+        "name": "invalid_login_and_disabled_test_endpoint",
+        "status": "PASS",
+        "seconds": 1.35
+      },
+      {
+        "name": "jwt_validation_and_gateway_header_boundary",
+        "status": "PASS",
+        "seconds": 1.79
+      },
+      {
+        "name": "refresh_rotation_replay_and_reuse",
+        "status": "PASS",
+        "seconds": 3.47
+      },
+      {
+        "name": "concurrent_refresh_same_key",
+        "status": "PASS",
+        "seconds": 2.94
+      },
+      {
+        "name": "concurrent_refresh_different_keys",
+        "status": "PASS",
+        "seconds": 2.71
+      },
+      {
+        "name": "logout_idempotency_and_revocation",
+        "status": "PASS",
+        "seconds": 3.05
+      },
+      {
+        "name": "concurrent_logout_refresh",
+        "status": "PASS",
+        "seconds": 2.45
+      },
+      {
+        "name": "invalid_refresh_inputs",
+        "status": "PASS",
+        "seconds": 0.49
+      },
+      {
+        "name": "disabled_user_rejected",
+        "status": "PASS",
+        "seconds": 3.44
+      },
+      {
+        "name": "expired_session_rejected",
+        "status": "PASS",
+        "seconds": 2.9
+      },
+      {
+        "name": "profile_update_replay_and_version_conflict",
+        "status": "PASS",
+        "seconds": 0.64
+      },
+      {
+        "name": "gateway_settings_route",
+        "status": "PASS",
+        "seconds": 0.16
+      },
+      {
+        "name": "gateway_anonymous_public_profile",
+        "status": "PASS",
+        "seconds": 0.18
+      },
+      {
+        "name": "gateway_profile_search_route",
+        "status": "PASS",
+        "seconds": 0.58
+      },
+      {
+        "name": "internal_provisioning_auth_and_replay",
+        "status": "PASS",
+        "seconds": 2.45
+      },
+      {
+        "name": "profile_process_outage_recovery",
+        "status": "PASS",
+        "seconds": 14.58
+      },
+      {
+        "name": "profile_database_outage_recovery",
+        "status": "PASS",
+        "seconds": 11.67
+      },
+      {
+        "name": "identity_database_outage_recovery",
+        "status": "PASS",
+        "seconds": 10.28
+      },
+      {
+        "name": "valkey_outage_durable_fallback",
+        "status": "PASS",
+        "seconds": 7.54
+      },
+      {
+        "name": "cache_loss_replays_durable_result",
+        "status": "PASS",
+        "seconds": 3.48
+      },
+      {
+        "name": "permanent_profile_auth_failure_redrive",
+        "status": "PASS",
+        "seconds": 4.46
+      },
+      {
+        "name": "identity_crash_after_profile_commit",
+        "status": "PASS",
+        "seconds": 15.16
+      },
+      {
+        "name": "lost_profile_response_recovery",
+        "status": "PASS",
+        "seconds": 10.79
+      },
+      {
+        "name": "kafka_outage_recovery",
+        "status": "PASS",
+        "seconds": 6.75
+      },
+      {
+        "name": "relay_crash_claim_recovery",
+        "status": "FAIL",
+        "seconds": 96.9,
+        "error": "Timed out: relay claim recovered"
+      },
+      {
+        "name": "service_restart_preserves_replay",
+        "status": "PASS",
+        "seconds": 6.6
+      },
+      {
+        "name": "profile_settings_and_public_read_direct",
+        "status": "PASS",
+        "seconds": 0.55
+      },
+      {
+        "name": "two_reconcilers_drain_pending_registrations",
+        "status": "PASS",
+        "seconds": 32.45
+      },
+      {
+        "name": "reconciler_crash_after_profile_commit",
+        "status": "PASS",
+        "seconds": 22.58
+      },
+      {
+        "name": "replay_key_unavailable_then_restored",
+        "status": "PASS",
+        "seconds": 7.55
+      },
+      {
+        "name": "registration_retry_exhaustion_and_redrive",
+        "status": "PASS",
+        "seconds": 22.8
+      },
+      {
+        "name": "relay_crash_after_publish_before_commit",
+        "status": "PASS",
+        "seconds": 11.46
+      },
+      {
+        "name": "global_consistency_and_kafka_delivery",
+        "status": "PASS",
+        "seconds": 4.62
+      },
+      {
+        "name": "credential_canaries_absent_from_logs",
+        "status": "PASS",
+        "seconds": 1.03
+      }
+    ],
+    "consistency": {
+      "users": 33,
+      "profiles": 33,
+      "settings": 33,
+      "registrations": 33,
+      "outbox": 33,
+      "kafka_deliveries": 34,
+      "kafka_duplicate_deliveries": 1
+    },
+    "cleanup": {
+      "containers_and_volumes_removed": true
+    },
+    "scope_limit": "Generated isolated config overrides DB settings, keys, timeouts and topic; not unmodified root Compose"
+  },
+  "relay_reruns": [
+    {
+      "run": 1,
+      "artifacts": "C:\\Users\\Alex\\AppData\\Local\\Temp\\andruha-identity-e2e-pmemnc3w",
+      "cases": [
+        {
+          "name": "relay_crash_claim_recovery",
+          "status": "FAIL",
+          "error": "Timed out: relay claim recovered",
+          "seconds": 96.52
+        }
+      ],
+      "cleanup": {
+        "containers_and_volumes_removed": true
+      },
+      "final": {
+        "elapsed": 114.03,
+        "containers": [
+          {
+            "Service": "identity-relay",
+            "State": "exited",
+            "Status": "Exited (1) About a minute ago",
+            "Health": "",
+            "ExitCode": 1
+          },
+          {
+            "Service": "kafka",
+            "State": "running",
+            "Status": "Up About a minute (healthy)",
+            "Health": "healthy",
+            "ExitCode": 0
+          }
+        ],
+        "outbox": [
+          {
+            "status": "CLAIMED",
+            "attempts": 0,
+            "last_error_class": null,
+            "created_at": "2026-11-15T11:45:32.303638+00:00",
+            "available_at": "2026-11-15T11:45:32.303638+00:00",
+            "claim_expires_at": "2026-11-15T11:45:37.679972+00:00",
+            "terminal_at": null
+          }
+        ]
+      },
+      "root_cause": "Kafka unavailable during restarted relay bootstrap -> KafkaConnectionError -> process exits(1); Kafka later healthy; expired CLAIMED remains without running worker"
+    },
+    {
+      "run": 2,
+      "artifacts": "C:\\Users\\Alex\\AppData\\Local\\Temp\\andruha-identity-e2e-9_pys4oj",
+      "cases": [
+        {
+          "name": "relay_crash_claim_recovery",
+          "status": "FAIL",
+          "error": "Timed out: relay claim recovered",
+          "seconds": 96.42
+        }
+      ],
+      "cleanup": {
+        "containers_and_volumes_removed": true
+      },
+      "final": {
+        "elapsed": 113.97,
+        "containers": [
+          {
+            "Service": "identity-relay",
+            "State": "exited",
+            "Status": "Exited (1) About a minute ago",
+            "Health": "",
+            "ExitCode": 1
+          },
+          {
+            "Service": "kafka",
+            "State": "running",
+            "Status": "Up About a minute (healthy)",
+            "Health": "healthy",
+            "ExitCode": 0
+          }
+        ],
+        "outbox": [
+          {
+            "status": "CLAIMED",
+            "attempts": 0,
+            "last_error_class": null,
+            "created_at": "2026-11-15T11:47:29.564565+00:00",
+            "available_at": "2026-11-15T11:47:29.564565+00:00",
+            "claim_expires_at": "2026-11-15T11:47:34.863693+00:00",
+            "terminal_at": null
+          }
+        ]
+      },
+      "root_cause": "Kafka unavailable during restarted relay bootstrap -> KafkaConnectionError -> process exits(1); Kafka later healthy; expired CLAIMED remains without running worker"
+    }
+  ],
+  "diagnostic_probes": {
+    "identity_refresh_expiry": {
+      "environment": "real disposable PostgreSQL/Valkey; HTTP Profile peer",
+      "script": "C:/Users/Alex/AppData/Local/Temp/andruha-audit-2026-11-15/identity/refresh_expired_fence_probe.py",
+      "result": {
+        "first_refresh_status": 204,
+        "expired_same_key_retry_status": 500,
+        "session_revoked": false,
+        "replacement_after_reuse_status": 204
+      }
+    },
+    "messages_retries": {
+      "environment": "existing test fakes/wrappers; production Cassandra adapter absent",
+      "script": "C:/Users/Alex/AppData/Local/Temp/andruha-audit-2026-11-15/messages/probe_retries.py",
+      "group_create": {
+        "actual_groups_after_retry": 2,
+        "original_projection_repaired": false
+      },
+      "edit": {
+        "steps": [
+          "A to B cmd1",
+          "B to C cmd2",
+          "retry cmd1"
+        ],
+        "actual_text": "B",
+        "actual_version": 4,
+        "required_text": "C"
+      }
+    },
+    "profile_offline": {
+      "environment": "production create_app/Dishka, unavailable PostgreSQL localhost port",
+      "script": "C:/Users/Alex/AppData/Local/Temp/andruha-audit-2026-11-15/user-profile/probe-offline.py",
+      "ready_status": 200,
+      "business_status": 500
+    },
+    "profile_schema_drift": {
+      "environment": "fresh random PostgreSQL schema, upgrade head then alembic check",
+      "script": "C:/Users/Alex/AppData/Local/Temp/andruha-audit-2026-11-15/user-profile/check_schema.py",
+      "result": "AutogenerateDiffsDetected: remove UniqueConstraint(profiles.username), add unique Index(ix_profiles_username)"
+    }
+  },
+  "relay_diagnostic_harness": {
+    "command": "rtk proxy uv run python C:/Users/Alex/AppData/Local/Temp/andruha-audit-2026-11-15/identity/relay_rerun_probe.py",
+    "cwd": "C:/Projects/Andruha/services/identity-service",
+    "harness_exit_code": 0,
+    "nested_suite_exit_codes": [
+      1,
+      1
+    ],
+    "note": "Harness exit 0 means diagnostics and cleanup completed, not that scenarios passed"
+  },
+  "preservation": [
+    {
+      "repo": "C:\\Projects\\Andruha",
+      "head_unchanged": true,
+      "old_files": 142,
+      "modified_old_files": [],
+      "added_files": [
+        "docs/audits/2026-11-15-andruha-readiness-report.md",
+        "docs/audits/2026-11-15-messages-dialogues-backlog.md",
+        "docs/verification/andruha-audit-2026-11-15.json"
+      ],
+      "service_status": " M AGENTS.md\n M docs/agent-guidelines/AGENTS.md\n M docs/agent-guidelines/README.md\n M frontend/index.html\n M frontend/src/api.ts\n M frontend/src/pages/Auth.vue\n M frontend/src/pages/Landing.vue\n M frontend/src/pages/Messenger.vue\n M frontend/src/styles.css\n M services/api-gateway\n M services/identity-service\n M services/messages-dialogues-service\n M services/object-storage-service\n M services/user-profile-service\n M services/websocket-gateway-service\n?? design/\n?? docs/audits/\n?? docs/diagram_conceptual_erd.png\n?? docs/diagram_logical_erd.png\n?? docs/product-development-plan-2026-09-18.md\n?? docs/verification/andruha-audit-2026-11-15.json\n?? \"docs/\\320\\236\\320\\242\\320\\247\\320\\225\\320\\242_\\320\\243\\320\\237_\\320\\237\\320\\234.02_\\320\\225\\320\\274\\320\\265\\320\\273\\321\\214\\321\\217\\320\\275\\320\\276\\320\\262_\\320\\233\\320\\2405.docx\"\n?? \"docs/\\320\\236\\320\\242\\320\\247\\320\\225\\320\\242_\\320\\243\\320\\237_\\320\\237\\320\\234.02_\\320\\225\\320\\274\\320\\265\\320\\273\\321\\214\\321\\217\\320\\275\\320\\276\\320\\262_\\320\\233\\320\\2406.docx\"\n?? frontend/public/fox-detective.png\n?? frontend/public/fox-front-open.png\n?? frontend/public/fox-walk-1.png\n?? frontend/public/fox-walk-2.png\n?? frontend/public/fox-walk-3.png\n?? frontend/public/fox-walk-4.png\n?? frontend/public/meme-reaction.png\n?? frontend/public/meme-think.png\n?? frontend/public/meme-yurt.png\n?? frontend/public/snack-apple.png\n?? frontend/public/snack-beetle-1.png\n?? frontend/public/snack-beetle-2.png\n?? frontend/public/snack-beetle-3.png\n?? frontend/public/snack-berries.png\n?? frontend/public/snack-egg.png\n?? frontend/src/components/\n"
+    },
+    {
+      "repo": "C:\\Projects\\Andruha\\services\\identity-service",
+      "head_unchanged": true,
+      "old_files": 260,
+      "modified_old_files": [],
+      "added_files": [],
+      "service_status": ""
+    },
+    {
+      "repo": "C:\\Projects\\Andruha\\services\\user-profile-service",
+      "head_unchanged": true,
+      "old_files": 258,
+      "modified_old_files": [],
+      "added_files": [],
+      "service_status": ""
+    },
+    {
+      "repo": "C:\\Projects\\Andruha\\services\\messages-dialogues-service",
+      "head_unchanged": true,
+      "old_files": 249,
+      "modified_old_files": [],
+      "added_files": [],
+      "service_status": ""
+    }
+  ],
+  "artifact_validation": {
+    "markdown": [
+      {
+        "docName": "2026-11-15-andruha-readiness-report.md",
+        "characters": 30870,
+        "lines": 292,
+        "links": 36
+      },
+      {
+        "docName": "2026-11-15-messages-dialogues-backlog.md",
+        "characters": 30566,
+        "lines": 305,
+        "links": 2
+      }
+    ],
+    "broken_local_links": [],
+    "json_parse": "PASS",
+    "backlog": {
+      "messages_tasks": 18,
+      "foundation_tasks": 9,
+      "external_tasks": 3,
+      "duplicate_ids": 0,
+      "logical_dependency_cycles": 0,
+      "reviewed_by": [
+        "identity auditor",
+        "user-profile auditor",
+        "messages auditor"
+      ],
+      "note": "Base Direct/Saved acceptance and later edit/delete/group extensions separated to avoid semantic AC cycles"
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-17",
+  "scope": "Messages async Cassandra stage",
+  "status": "verified_local_uncommitted",
+  "source": {
+    "parent_head": "f4b5e2e9866d3b7152733ad240e6520d693f598a",
+    "messages_head": "69314c30e4919534c7a56d709d3d5bd50f2a947e",
+    "branch": "feat/readiness-backlog",
+    "uncommitted": true
+  },
+  "versions": {
+    "python": "3.14",
+    "cassandra": "5.0.8-bookworm",
+    "cassandra_driver": "3.30.1",
+    "pyasyncore": "1.0.4",
+    "cql_track": "1.1.0",
+    "pyjwt": "2.15.1",
+    "cryptography": "50.0.2",
+    "index": "https://pypi.tuna.tsinghua.edu.cn/simple"
+  },
+  "checks": [
+    {
+      "name": "unit",
+      "command": "uv run pytest tests/unit -q --cov=app --cov-branch --cov-append --cov-report= --cov-fail-under=0",
+      "passed": 530
+    },
+    {
+      "name": "real Cassandra + HTTP bootstrap integration",
+      "command": "python scripts/verification/run_messages_checks.py tests/integration --cov=app --cov-branch --cov-append --cov-report= --cov-fail-under=0 -q --tb=short",
+      "passed": 35,
+      "real_cassandra": 27,
+      "http_bootstrap": 8
+    },
+    {
+      "name": "branch coverage",
+      "percent": 92,
+      "threshold": 80
+    },
+    {
+      "name": "quality",
+      "result": "prek all-files passed; explicit Ruff lint/format and ty include new files; lock check passed"
+    },
+    {
+      "name": "runtime image",
+      "image": "andruha/messages-dialogues-service:readiness-async-cassandra-20261117",
+      "identity": "sha256:b5b4300930cc1f85b973ccf9a990ed0a4393fe8103e7872eb3570d18afa8f75d linux/amd64",
+      "result": "build passed"
+    },
+    {
+      "name": "migration CLI in Linux runtime image",
+      "passed": 8,
+      "evidence": "messages-cassandra-image-smoke-2026-11-17.json",
+      "cleanup_complete": true,
+      "image_id": "sha256:b5b4300930cc1f85b973ccf9a990ed0a4393fe8103e7872eb3570d18afa8f75d"
+    },
+    {
+      "name": "runtime HTTP smoke",
+      "result": "live200/ready200 with X-Request-Id; owned container removed",
+      "business_database_readiness_proven": false
+    },
+    {
+      "name": "runtime dependency audit",
+      "service": "osv",
+      "result": "No known vulnerabilities found",
+      "requirements": "uv export --no-dev, complete pinned dependency graph",
+      "previous_attempt": "PyPI advisory request failed with ConnectionResetError WinError 10054; no TLS verification disabled"
+    },
+    {
+      "name": "parent Compose",
+      "result": "docker compose config --quiet passed"
+    },
+    {
+      "name": "post-guard lifecycle recheck",
+      "command": "python scripts/verification/run_messages_checks.py tests/integration/cassandra/test_connection.py --cov=app --cov-branch --cov-append --cov-report= --cov-fail-under=0 -q --tb=short",
+      "passed": 2
+    }
+  ],
+  "guarantees_verified": [
+    "Runtime Direct/Saved create and group creation/membership use execute_async bridged to asyncio Future",
+    "Runtime and migration regression paths reject native Session.execute",
+    "Driver I/O-thread callbacks settle awaiters thread-safely; late callbacks after cancellation are ignored",
+    "Cancelled callers retain in-flight admission until native response; shutdown rejects new work and drains current requests",
+    "Admission deadline and explicit bounded async pagination",
+    "Only native connect/shutdown use one dedicated lifecycle worker; async USE selects keyspace",
+    "Cancellation during connect closes the late native resource",
+    "CQL migration history/checksum/status/upgrade/rollback/diff/resume use async requests",
+    "Persistent LWT run lock has no TTL and uses conditional owner release",
+    "Lost lock/history commit responses are resolved by serial durable reads",
+    "Partial upgrade/rollback is recorded; ordinary rerun is blocked until explicit inspected resume",
+    "Schema agreement timeout stops the next DDL; known-live host versions checked",
+    "Real concurrent Direct reverse-pair and 32 Saved creations retain one winner",
+    "Group last-place race, revision-bound absence, unknown commit and bounded working journal",
+    "Invalid in-flight configuration is rejected before native Cluster allocation"
+  ],
+  "documents": [
+    "../database-interactions.md",
+    "../../services/messages-dialogues-service/docs/database-interactions.md",
+    "../audits/2026-11-15-readiness-implementation.md"
+  ],
+  "remaining": [
+    "Full Messages backlog is not complete: message send/storage, receipts, queries/history/sync, projections and durable outbox/archive/recovery",
+    "Business HTTP and Kafka composition/readiness remain open",
+    "Object Storage/media and WebSocket full E2E remain open",
+    "Multi-node Cassandra schema agreement and TLS/auth-enabled Cassandra were not run",
+    "Remote CI and remote secret scan were not run"
+  ],
+  "cleanup_complete": true
+}

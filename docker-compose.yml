@@ -31,6 +31,13 @@ services:
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
       RUN_MIGRATIONS: "true"
+      DATABASE_HOST: identity-postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: ${IDENTITY_POSTGRES_USER:-andruha_identity}
+      DATABASE_PASSWORD: ${IDENTITY_POSTGRES_PASSWORD:-identity-local-only}
+      DATABASE_NAME: ${IDENTITY_POSTGRES_DB:-andruha_identity}
+      KAFKA_USER_REGISTERED_TOPIC: identity.events.v1
+      IDENTITY_INTERNAL_API_TOKEN: ${IDENTITY_INTERNAL_API_TOKEN:-identity-internal-local-only}
       PROFILE_SERVICE_URL: http://user-profile-service:8002
       PROFILE_SERVICE_TOKEN: ${PROFILE_PROVISIONING_TOKEN:-profile-provisioning-local-only}
       PROFILE_SERVICE_TIMEOUT_SECONDS: ${PROFILE_SERVICE_TIMEOUT_SECONDS:-3}
@@ -72,6 +79,14 @@ services:
       context: ./services/identity-service
       target: runtime
     command: ["python", "-m", "app.entrypoints.messaging.relay"]
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.entrypoints.messaging.health", "--ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     environment:
       SERVICE_NAME: andruha-identity-relay
       APP_VERSION: ${APP_VERSION:-0.1.0}
@@ -80,6 +95,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
       RUN_MIGRATIONS: "false"
+      DATABASE_HOST: identity-postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: ${IDENTITY_POSTGRES_USER:-andruha_identity}
+      DATABASE_PASSWORD: ${IDENTITY_POSTGRES_PASSWORD:-identity-local-only}
+      DATABASE_NAME: ${IDENTITY_POSTGRES_DB:-andruha_identity}
+      KAFKA_USER_REGISTERED_TOPIC: identity.events.v1
     secrets:
       - identity_jwt_private_key
       - identity_replay_key
@@ -108,6 +129,12 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
       RUN_MIGRATIONS: "false"
+      DATABASE_HOST: identity-postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: ${IDENTITY_POSTGRES_USER:-andruha_identity}
+      DATABASE_PASSWORD: ${IDENTITY_POSTGRES_PASSWORD:-identity-local-only}
+      DATABASE_NAME: ${IDENTITY_POSTGRES_DB:-andruha_identity}
+      KAFKA_USER_REGISTERED_TOPIC: identity.events.v1
       PROFILE_SERVICE_URL: http://user-profile-service:8002
       PROFILE_SERVICE_TOKEN: ${PROFILE_PROVISIONING_TOKEN:-profile-provisioning-local-only}
       PROFILE_SERVICE_TIMEOUT_SECONDS: ${PROFILE_SERVICE_TIMEOUT_SECONDS:-3}
@@ -204,6 +231,23 @@ services:
       DEV_LOGS: ${DEV_LOGS:-true}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MUTE_LOGGERS: ${MUTE_LOGGERS:-uvicorn.access}
+      MESSAGING_ENABLED: "true"
+      MESSAGING_IDENTITY_URL: http://identity-service:8001
+      MESSAGING_IDENTITY_SERVICE_TOKEN: ${IDENTITY_INTERNAL_API_TOKEN:-identity-internal-local-only}
+      MESSAGING_CURSOR_KEY_FILE: /run/secrets/messages_cursor_key
+      JWT_PUBLIC_KEYS: '{"identity-v1":"/run/configs/identity_jwt_public_key"}'
+      JWT_ISSUER: andruha-identity-service
+      JWT_AUDIENCE: andruha-messages-dialogues-service
+      CQLTRACK_CONTACT_POINTS: messages-cassandra
+      CQLTRACK_KEYSPACE: messages
+    secrets:
+      - messages_cursor_key
+    configs:
+      - source: identity_jwt_public_key
+        target: /run/configs/identity_jwt_public_key
+    depends_on:
+      messages-migrate:
+        condition: service_completed_successfully
     expose:
       - "8003"
     healthcheck:
@@ -333,10 +377,36 @@ services:
     networks:
       - andruha
 
+  messages-keyspace:
+    image: cassandra:5.0.8-bookworm
+    command: ["cqlsh", "messages-cassandra", "-e", "CREATE KEYSPACE IF NOT EXISTS messages WITH replication = {'class':'SimpleStrategy','replication_factor':1};"]
+    depends_on:
+      messages-cassandra:
+        condition: service_healthy
+    networks:
+      - andruha
+
+  messages-migrate:
+    image: andruha/messages-dialogues-service:0.1.0
+    build:
+      context: ./services/messages-dialogues-service
+      target: runtime
+    command: ["python", "-m", "app.entrypoints.migrations", "migrate"]
+    environment:
+      CQLTRACK_CONTACT_POINTS: messages-cassandra
+      CQLTRACK_KEYSPACE: messages
+    depends_on:
+      messages-keyspace:
+        condition: service_completed_successfully
+    networks:
+      - andruha
+
   messages-cassandra:
     image: cassandra:5.0.8-bookworm
     environment:
       CASSANDRA_CLUSTER_NAME: AndruhaMessagesLocal
+      MAX_HEAP_SIZE: 512M
+      HEAP_NEWSIZE: 128M
       CASSANDRA_DC: datacenter1
       CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
     volumes:
@@ -420,6 +490,9 @@ volumes:
   minio_data:
 
 secrets:
+  messages_cursor_key:
+    file: ./.secrets/messages/cursor.key
+
   identity_jwt_private_key:
     file: ./.secrets/identity/jwt-private.pem
 
