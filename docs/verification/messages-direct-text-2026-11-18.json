@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "client_date": "2026-11-18",
+  "verified_at_utc": "2026-11-17T18:31:40.457450+00:00",
+  "scope": "Registered A/B create one Direct, send text without duplicates and read HTTP history/sync",
+  "git": {
+    "parent_head": "f4b5e2e9866d3b7152733ad240e6520d693f598a",
+    "parent_branch": "feat/ci-image-security-scan",
+    "messages_head": "69314c30e4919534c7a56d709d3d5bd50f2a947e",
+    "messages_branch": "feat/ci-image-security-scan",
+    "uncommitted_local_changes": true,
+    "commit_push_pr_performed": false
+  },
+  "unit_and_integration": {
+    "exit_code": 0,
+    "tests": 576,
+    "unit": 532,
+    "integration": 44,
+    "coverage_percent": 89.22316093138265,
+    "real_cassandra_tests": 36,
+    "cassandra_version": "5.0.8",
+    "replication_factor": 1,
+    "command": "uv run pytest tests/unit tests/integration --cov=app --cov-branch --cov-report=json:<private-path> --junitxml=<private-path> -q",
+    "artifact_directory": "C:\\Users\\Alex\\AppData\\Local\\Temp\\andruha-direct-final-n4lwqyos"
+  },
+  "quality": {
+    "prek_all_files": "passed",
+    "ruff_check_including_new_files": "passed",
+    "ruff_format_including_new_files": "passed",
+    "ty_error_on_warning": "passed",
+    "uv_lock_check": "passed",
+    "runtime_pip_audit": "No known vulnerabilities found",
+    "parent_contract_tests": 4,
+    "parent_factory_schema_tests": 16,
+    "compose_config": "passed",
+    "git_diff_check_parent_and_messages": "passed"
+  },
+  "e2e": {
+    "passed": 9,
+    "checks": [
+      "A/B registration, durable profiles and Identity login",
+      "A-B and B-A create one canonical Direct through Gateway",
+      "Eight concurrent retries keep one message ID and position",
+      "History pagination holds its upper position during a concurrent send",
+      "Recipient HTTP sync returns every send once and resumes without duplicates",
+      "Dialog card activity, Saved text and cross-dialog send-key conflict",
+      "Foreign dialog, anonymous request, actor spoof and foreign cursor denied",
+      "Messages process restart preserves the send result",
+      "Cassandra outage gives 503 and recovers without losing accepted text"
+    ],
+    "messages_image": "andruha/messages-dialogues-service:messages-e2e-8ca0e06b31",
+    "messages_image_id": "sha256:ec575a3673319027c5431398f987b69b00967b08b0432badd5fb541d30316e1a",
+    "artifact_directory": "C:\\Users\\Alex\\AppData\\Local\\Temp\\andruha-identity-e2e-ri7h97ls"
+  },
+  "docker_migration_smoke": {
+    "image": "andruha/messages-dialogues-service:messages-e2e-8ca0e06b31",
+    "image_id": "sha256:ec575a3673319027c5431398f987b69b00967b08b0432badd5fb541d30316e1a",
+    "passed": 8,
+    "checks": [
+      "read-only status before migration",
+      "async upgrade",
+      "applied status",
+      "async history",
+      "async schema inspection",
+      "async downgrade",
+      "remigrate",
+      "full explicit downgrade"
+    ],
+    "cleanup_complete": true
+  },
+  "verified_runtime_source": {
+    "matches": true,
+    "runtime_source_sha256": "069d8b38b9528a363eae4f25637a2a3c8f0311cb4786da3e53bd8d395bc76571",
+    "image": "andruha/messages-dialogues-service:messages-e2e-8ca0e06b31"
+  },
+  "cleanup": {
+    "e2e_containers_network_and_volumes_removed": true,
+    "image_smoke_resources_removed": true,
+    "pytest_cassandra_removed": true,
+    "other_projects_untouched": true
+  },
+  "implemented": [
+    "Global Direct/Saved sender/client send reservation",
+    "Canonical CAS position/message/immutable event envelopes",
+    "Bounded work discovery, repair and revision-fenced archive/retire",
+    "History/point/card/list/sync projections and signed scoped cursors",
+    "Outbox durable storage and lease-fenced claim lifecycle",
+    "Real production Cassandra/Identity/JWT HTTP composition and role readiness"
+  ],
+  "remaining": [
+    "Kafka publisher/consumer and WebSocket fan-out/reconnect",
+    "Group send/edit/delete and receipts with reader details",
+    "Object Storage/MinIO media integration",
+    "Retention/GC, capacity metrics, remaining role readiness and replay protection",
+    "Complete MD-N16 acceptance"
+  ],
+  "not_run": [
+    "Remote CI and full-history secret scan",
+    "Multi-node or TLS/auth-enabled Cassandra acceptance",
+    "Full Identity/Profile test suites in this implementation stage",
+    "Unmodified entire root Compose stack with every service",
+    "Kafka/WS/media/edit/delete/receipt end-to-end acceptance"
+  ],
+  "private_artifacts": "Do not publish generated Compose/manifest, credentials, keys or raw service logs"
+}

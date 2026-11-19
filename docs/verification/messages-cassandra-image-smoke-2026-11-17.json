@@ -1,0 +1,16 @@
+{
+  "image": "andruha/messages-dialogues-service:readiness-async-cassandra-20261117",
+  "image_id": "sha256:b5b4300930cc1f85b973ccf9a990ed0a4393fe8103e7872eb3570d18afa8f75d",
+  "passed": 8,
+  "checks": [
+    "read-only status before migration",
+    "async upgrade",
+    "applied status",
+    "async history",
+    "async schema inspection",
+    "async downgrade",
+    "remigrate",
+    "full explicit downgrade"
+  ],
+  "cleanup_complete": true
+}
